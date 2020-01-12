@@ -6,7 +6,7 @@ handles connections with IoT devices and uses CloudConnector for connections
 stats.
 */
 type ServerInterface interface {
-	Name() string
-	Start(cloudConnector *CloudConnector) error
-	Shutdown(*chan bool) error
+    Name() string
+    Start(cloudConnector *CloudConnector) error
+    Shutdown(*chan bool) error
 }
