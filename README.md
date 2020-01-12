@@ -1,14 +1,15 @@
 # IoT Cloud Connector
-A cloud server where you code how IoT devices send and receive messages.
+
+A cloud server where you code how IoT devices send and receive messages using the network protocol of your choice.
 
 ## What IoT Cloud Connector does
 
 Allows you to keep permanent connections between IoT devices (or any other kind of device) and a cloud server.
 
-## Who may use it
+## Who is addressed to
 
-This tool is for developers as it does not have any user interface and its functionality
-has to be coded in [Go programming language](https://golang.org/).
+This tool is mainly for developers as it does not have any user interface and its functionality
+has to be coded using [Go programming language](https://golang.org/).
 
 ## How to use it
 
@@ -21,18 +22,19 @@ There are 3 main concepts :
 
 ### CloudConnector
 
-This struct has all the control logic regarding the IoT devices conenctios, such as:
-    - Active connections
-    - Memory usage
-    - Network usage
-    - Incoming messages and outgoing messages stats
-    - Server start and shutdow
-    - Closing connections
-    - Logging
+This struct has all the control logic regarding the IoT devices connections, such as:
+
+- Active connections
+- Memory usage
+- Network usage
+- Incoming messages and outgoing messages stats
+- Server start and shutdown
+- Closing connections
+- Logging
 
 ### Server
 
-This is where you implement all your logic; defining how conenctions are established,
+This is where you implement all your logic; defining how connections are established,
 authenticated, how messages are handled and even what kind of network protocol is used.
 All servers MUST implement the *ServerInterface* interface in order to be compatible
 with any *CloudConnector* instance.
