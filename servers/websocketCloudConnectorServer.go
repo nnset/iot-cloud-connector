@@ -7,6 +7,8 @@ import(
     "runtime"
     "strconv"
     "context"
+    "sync"
+    "fmt"
     
     "github.com/nnset/iot-cloud-connector/connections"
     
@@ -25,12 +27,13 @@ in order to:
 */
 type WebsocketCloudConnectorServer struct {
     id                      string
-    port                    string
     address                 string
+    port                    string
     network                 string
     certFile                string
     keyFile                 string
     log                     *logrus.Logger 
+    
     handleMessage           func (ctx context.Context, c *websocket.Conn) error
     authenticateConnection  func (r *http.Request) error
     handleLostConnection    func (connection *connections.DeviceConnection, err error) error
@@ -39,47 +42,40 @@ type WebsocketCloudConnectorServer struct {
     cloudConnector          *CloudConnector
     shutdownChannel         chan bool
     shutdownIsCompleteChannel chan bool
+    
+    activeConnections      map[string]*connections.DeviceConnection  // Map that controls the established connections
+    dataMutex              *sync.Mutex  // Mutex used for modifying this instance's data
 }
 
 /*
-WebsocketCloudConnectorServerSettings Attributes required to start the server
+NewWebsocketServer Returns a new instance of WebsocketCloudConnectorServer
 */
-type WebsocketCloudConnectorServerSettings struct {
-    Address                 string
-    Port                    string
-    Network                 string
-    CertFile                string
-    KeyFile                 string
-    Log                     *logrus.Logger 
-    HandleMessage           func (ctx context.Context, c *websocket.Conn) error
-    AuthenticateConnection  func (r *http.Request) error
-    HandleLostConnection    func (connection *connections.DeviceConnection, err error) error
+func NewWebsocketServer(
+    address, port, network, certFile, keyFile string, 
+    log *logrus.Logger,
+    handleMessage func (ctx context.Context, c *websocket.Conn) error,
+    authenticateConnection func (r *http.Request) error,
+    handleLostConnection func (connection *connections.DeviceConnection, err error) error)  *WebsocketCloudConnectorServer {
+    
+        return &WebsocketCloudConnectorServer {
+            id: uuid.New().String(),
+            address: address,
+            port: port,
+            network: network,
+            certFile: certFile,
+            keyFile: keyFile,
+            log: log,
+            handleMessage: handleMessage,
+            authenticateConnection: authenticateConnection,
+            handleLostConnection: handleLostConnection,
+        }
 }
 
 /*
 Name A brief description for this server
 */
-func Name() string {
+func (server *WebsocketCloudConnectorServer) Name() string {
     return "Websocket server using nhooyr.io/websocket"
-}
-
-/*
-Init Sets the initial attributes values in order to start the server
-*/
-func (server *WebsocketCloudConnectorServer) Init(settings WebsocketCloudConnectorServerSettings) {
-    if server.id == "" {
-        server.id = uuid.New().String()        
-        server.port = settings.Port
-        server.address = settings.Address
-        server.network = settings.Network
-        server.certFile = settings.CertFile
-        server.keyFile = settings.KeyFile    
-        server.log = settings.Log
-        server.handleMessage = settings.HandleMessage
-        server.authenticateConnection = settings.AuthenticateConnection
-        server.handleLostConnection = settings.HandleLostConnection
-        server.shutdownIsCompleteChannel = make(chan bool, 1)
-    }
 }
 
 /*
@@ -147,31 +143,21 @@ func (server *WebsocketCloudConnectorServer) handleConnection(w http.ResponseWri
 
     deviceID := r.Header.Get("device_id")
 
-    wsConnection := connections.WebsocketConnection {c}
-    var connection connections.DeviceConnection    
-    err = connection.Init(&wsConnection, deviceID, r.RemoteAddr, r.UserAgent())
-    
-    if err != nil {    
-        return
-    }
+    var wsConnection = connections.NewWebsocketConnection(c)
+    var deviceConnection = connections.NewDeviceConnection(wsConnection, deviceID, r.RemoteAddr, r.UserAgent())
 
-    connectionID, err := server.cloudConnector.AddConnection(&connection)
+    server.addConnection(deviceConnection)
     
-    if err != nil {
-        server.log.Error(err)
-        return
-    }
-
     for {
         err = server.handleMessage(r.Context(), c)
 
-        server.cloudConnector.MessageReceived(connectionID)
+        server.cloudConnector.MessageReceived(deviceConnection.ID())
 
         if websocket.CloseStatus(err) == websocket.StatusNormalClosure {            
             server.log.Debug("Handling message returned StatusNormalClosure", r.RemoteAddr, err)
 
-            server.handleLostConnection(&connection, err)
-            server.cloudConnector.CloseConnection(connectionID, connections.StatusNormalClosure, "Connection closed from client")
+            server.handleLostConnection(deviceConnection, err)
+            server.closeConnection(deviceConnection, connections.StatusNormalClosure, "Connection closed from client")
     
             return
         }
@@ -179,14 +165,82 @@ func (server *WebsocketCloudConnectorServer) handleConnection(w http.ResponseWri
         if err != nil {
             server.log.Error("Failed while handling message ", r.RemoteAddr, err)
 
-            server.handleLostConnection(&connection, err)
-            server.cloudConnector.CloseConnection(connectionID, connections.StatusNormalClosure, err.Error())
+            server.handleLostConnection(deviceConnection, err)
+            server.closeConnection(deviceConnection, connections.StatusNormalClosure, err.Error())
 
             return
         }
-
-        connection.MessageReceived()
     }
+}
+
+func (server *WebsocketCloudConnectorServer) addConnection(connection *connections.DeviceConnection) error {
+    server.dataMutex.Lock()
+    defer server.dataMutex.Unlock()
+
+    _, alreadyConnected := server.activeConnections[connection.ID()]
+
+    if alreadyConnected {
+        return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
+    }
+
+    server.activeConnections[connection.ID()] = connection
+    err := server.cloudConnector.ConnectionEstablished(connection)
+
+    if err != nil {
+        server.log.Error(err)
+        // TODO 
+        // if cloud connector rejected the connection but server did accept it, should we cancel the connection?
+    }
+
+    return nil
+}
+
+func (server *WebsocketCloudConnectorServer) closeConnection(connection *connections.DeviceConnection, statusCode connections.ConnectionStatusCode, reason string) error {
+    server.dataMutex.Lock()
+    defer server.dataMutex.Unlock()
+
+    connectionID := connection.ID()
+
+    _, exists := server.activeConnections[connection.ID()]
+
+    if !exists {
+        return fmt.Errorf(fmt.Sprintf("Connection #%s with device #%s already closed.", connection.ID(), connection.DeviceID()))
+    }
+
+    // TODO timeout ?
+    err := connection.Close(statusCode, reason)
+
+    if (err != nil) {
+        delete(server.activeConnections, connectionID)
+        server.cloudConnector.ConnectionClosed(connectionID, statusCode, reason)
+    }
+    
+    return err
+}
+
+/*
+Shutdown Shutsdown the server and notifies shutdownConfirmation channel once finished
+*/
+func (server *WebsocketCloudConnectorServer) Shutdown(shutdownConfirmation *chan bool) error {
+    server.log.Debug("WebsocketCloudConnectorServer is shutting down. Closing active connections.")
+
+    for _, connection := range server.activeConnections {
+        remoteAddress := connection.RemoteAddress()
+        userAgent := connection.UserAgent()
+        deviceID := connection.DeviceID()
+        connectionID := connection.ID()
+
+        err := server.closeConnection(connection, connections.StatusNormalClosure, "Server shutdown")
+
+        if err != nil {
+            server.log.Debugf("Unable to close connection #%s with device #%s from %s (%s) : %s", connectionID, deviceID, remoteAddress, userAgent, err)
+        }
+    }
+
+    server.shutdownIsCompleteChannel <- true
+    *shutdownConfirmation <- true
+
+    return nil
 }
 
 func (server *WebsocketCloudConnectorServer) goRoutineID() uint64 {
@@ -197,18 +251,4 @@ func (server *WebsocketCloudConnectorServer) goRoutineID() uint64 {
     n, _ := strconv.ParseUint(string(b), 10, 64)
 
     return n
-}
-
-/*
-Shutdown Shutsdown the server and notifies shutdownConfirmation channel once finished
-*/
-func (server *WebsocketCloudConnectorServer) Shutdown(shutdownConfirmation *chan bool) error {
-    server.log.Debug("WebsocketCloudConnectorServer is shutting down. Closing active connections.")
-
-    server.cloudConnector.CloseAllConnections("Server shutdown")
-    
-    server.shutdownIsCompleteChannel <- true
-    *shutdownConfirmation <- true
-
-    return nil
 }

@@ -13,6 +13,13 @@ type WebsocketConnection struct {
 }
 
 /*
+NewWebsocketConnection Creates a new WebsocketConnection
+*/
+func NewWebsocketConnection(conn *websocket.Conn) *WebsocketConnection {
+    return &WebsocketConnection { Conn: conn }
+}
+
+/*
 Close Closes the websocket connection
 */
 func (wsCon *WebsocketConnection) Close(statusCode ConnectionStatusCode, reason string) error {

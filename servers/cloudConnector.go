@@ -4,12 +4,12 @@ import (
     "errors"
     "fmt"
     "time"
-    "sync"
     "bytes"
     "runtime"
     "strconv"
 
     "github.com/nnset/iot-cloud-connector/connections"
+    "github.com/nnset/iot-cloud-connector/storage"
 
     "github.com/sirupsen/logrus"
     "github.com/google/uuid"
@@ -24,43 +24,30 @@ type CloudConnector struct {
     startTime              int64  // When was this instance started in unix time
     totalConnections       uint64 // How many connections are currently opened against this instance
     totalMessagesProcessed uint64 // How many messages (incoming + outgoing) have been processed for this instance
-    server                 ServerInterface // Custom implementation of a server that sets how 
-                                           // IoT devices are connected, check ServerInterface
-    activeConnections      map[string]*connections.DeviceConnection  // Map that controls the established connections
     shutdownChannel        *chan bool  // This channel will report when CloudConnector and its server has to be shutdown
-    dataMutex              *sync.Mutex  // Mutex used for modifying this instance's data
     log                    *logrus.Logger  // Log
-    certFile               string  // In case the server uses TLS, this is the path to the certFile
-    keyFile                string  // In case the server uses TLS, this is the path to the keyFile
+
+    server                 ServerInterface // Custom implementation of a server that sets how 
+    connections            storage.DeviceConnectionsStorageInterface  // Where connections information is stored
 }
 
 /*
-CloudConnectorSettings Use this struct to initialize your CloudConnector
-instances. All fields are required.
+NewCloudConnector creates a new instance of CloudConnector
 */
-type CloudConnectorSettings struct {
-    Log                    *logrus.Logger
-    ShutdownChannel        *chan bool
-    Server                 ServerInterface
-    CertFile               string
-    KeyFile                string
-}
+func  NewCloudConnector(
+    shutdownChannel *chan bool, 
+    log *logrus.Logger, 
+    certFile, keyFile string, 
+    server ServerInterface, 
+    connections storage.DeviceConnectionsStorageInterface) *CloudConnector {
 
-/*
-Init sets de necessary initial values to the CloudConnector instance
-*/
-func (cloudConnector *CloudConnector) Init(settings CloudConnectorSettings) {
-    if cloudConnector.id == "" {
-        cloudConnector.id = uuid.New().String()
-        cloudConnector.startTime = time.Now().Unix()
-        cloudConnector.dataMutex = &sync.Mutex{}
-        cloudConnector.activeConnections = make(map[string]*connections.DeviceConnection)
-
-        cloudConnector.shutdownChannel = settings.ShutdownChannel
-        cloudConnector.server = settings.Server
-        cloudConnector.log = settings.Log
-        cloudConnector.certFile = settings.CertFile
-        cloudConnector.keyFile = settings.KeyFile
+    return &CloudConnector {
+        id: uuid.New().String(),
+        startTime: time.Now().Unix(),
+        shutdownChannel: shutdownChannel,
+        log: log,
+        server: server,
+        connections: connections,
     }
 }
 
@@ -110,93 +97,67 @@ func (cloudConnector *CloudConnector) shutdownServer(serverShutdownIsComplete *c
 }
 
 /*
-AddConnection Use this method when a ServerInterface instance established a connection
+ConnectionEstablished Use this method when a ServerInterface instance established a connection
 with a device so CloudConnector may handle connection's stats
 */
-func (cloudConnector *CloudConnector) AddConnection(connection *connections.DeviceConnection) (string, error) {
-    
-    _, alreadyConnected := cloudConnector.activeConnections[connection.ID()]
+func (cloudConnector *CloudConnector) ConnectionEstablished(connection *connections.DeviceConnection) error {
+    _, err := cloudConnector.connections.Get(connection.ID())
 
-    if alreadyConnected {
-        return "", fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
+    if err != nil {
+        return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
     }
 
-    cloudConnector.dataMutex.Lock()
-        cloudConnector.activeConnections[connection.ID()] = connection
-        cloudConnector.totalConnections++
-    cloudConnector.dataMutex.Unlock()
+    cloudConnector.connections.Add(
+        connection.ID(), 
+        connection.DeviceID(), 
+        connection.DeviceType(), 
+        connection.UserAgent(), 
+        connection.RemoteAddress(),
+    )
 
-    cloudConnector.log.Debug("New connection added")
-    cloudConnector.log.Debugf("  activeConnections[%s]", connection.ID())
-    cloudConnector.log.Debugf("  Monitored connections: %d", cloudConnector.totalConnections)
+    cloudConnector.log.Debugf("New connection added #s", connection.ID())
+    cloudConnector.log.Debugf("  Monitored connections: %d", cloudConnector.connections.TotalConnections())
     cloudConnector.log.Debugf("  System memory: %d MB", cloudConnector.systemMemory())
     cloudConnector.log.Debugf("  Total allocated memory: %d MB", cloudConnector.totalAllocatedMemory())
     cloudConnector.log.Debugf("  Total Go routines: %d", cloudConnector.totalGoRoutinesSpawned())
 
-    return connection.DeviceID(), nil
+    return nil
 }
 
 /*
-CloseAllConnections Tries to close all active connections sending them the reason of the closure
+ConnectionClosed Called when a server closes a connection
 */
-func (cloudConnector *CloudConnector) CloseAllConnections(reason string) {
-    for _, connection := range cloudConnector.activeConnections {
-        remoteAddress := connection.RemoteAddress()
-        userAgent := connection.UserAgent()
-        deviceID := connection.DeviceID()
-        connectionID := connection.ID()
+func (cloudConnector *CloudConnector) ConnectionClosed(
+    connectionID string, 
+    statusCode connections.ConnectionStatusCode, 
+    reason string,
+    ) error {
+  
+    stats, err := cloudConnector.connections.Get(connectionID)
 
-        err := cloudConnector.CloseConnection(connectionID, connections.StatusNormalClosure, reason)
-
-        if err != nil {
-            cloudConnector.log.Debugf("Unable to close connection #%s with device #%s from %s (%s) : %s", connectionID, deviceID, remoteAddress, userAgent, err)
-        }
+    if(err != nil) {
+        return err
     }
-}
-
-/*
-CloseConnection Closes a single connection.
-Remember this is a potentially destructive action so do not rely that #connectionID is 
-stored after calling this method.
-*/
-func (cloudConnector *CloudConnector) CloseConnection(connectionID string, statusCode connections.ConnectionStatusCode, reason string) error {
     
-    if cloudConnector.activeConnections[connectionID] == nil {
-        return errors.New("Connection not found")
-    }
+    cloudConnector.log.Debugf("Closing connection #%s with device #%s from %s : %s" , stats.DeviceID(), stats.RemoteAddress(), reason)
+    cloudConnector.log.Debugf("Total messages received: %d", stats.ReceivedMessages())
+    cloudConnector.log.Debugf("Total messages sent: %d", stats.SentMessages())
 
-    connection := cloudConnector.activeConnections[connectionID]
-
-    cloudConnector.log.Debugf("Closing connection #%s with device #%s from %s : %s", connection.ID(), connection.DeviceID(), connection.RemoteAddress(), reason)
-    cloudConnector.log.Debugf("Total messages received: %d", connection.IncomingMessages())
-    cloudConnector.log.Debugf("Total messages sent: %d", connection.OutgoingMessages())
-
-    cloudConnector.dataMutex.Lock()
-        err := connection.Close(statusCode, reason)
-        delete(cloudConnector.activeConnections, connectionID)
-        cloudConnector.totalConnections--
-    cloudConnector.dataMutex.Unlock()
-
-    return err
+    return cloudConnector.connections.Delete(connectionID)
 }
 
 /*
 MessageReceived A new message was received from a given connection
 */
 func (cloudConnector *CloudConnector) MessageReceived(connectionID string) {
-    cloudConnector.dataMutex.Lock()
-        cloudConnector.activeConnections[connectionID].MessageReceived()
-        cloudConnector.totalMessagesProcessed++
-    cloudConnector.dataMutex.Unlock()
+    cloudConnector.connections.MessageReceived(connectionID)
 }
 
 /*
-MessageSent A new message was send to a given connection
+MessageSent A new message was sent to a given connection
 */
 func (cloudConnector *CloudConnector) MessageSent(connectionID string) {
-    cloudConnector.dataMutex.Lock()
-        cloudConnector.activeConnections[connectionID].MessageSent()
-    cloudConnector.dataMutex.Unlock()
+    cloudConnector.connections.MessageSent(connectionID)
 }
 
 /*

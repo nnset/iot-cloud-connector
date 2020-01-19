@@ -18,7 +18,6 @@ type DeviceConnection struct {
     userAgent      string
     remoteAddress  string
     createdAt      int64
-    stats          deviceConnectionStats
     connection     NetworkConnection
 }
 
@@ -28,13 +27,6 @@ with a device
 */
 type NetworkConnection interface {
     Close(statusCode ConnectionStatusCode, reason string) error
-}
-
-type deviceConnectionStats struct {
-    lastIncomingMessageTimeStamp int64
-    lastOutgoingMessageTimeStamp int64
-    incomingMessages     uint64
-    outgoingMessages     uint64
 }
 
 /*
@@ -60,36 +52,17 @@ const (
 )
 
 /*
-Init Sets all required attributes
+NewDeviceConnection Creates a new instance of DeviceConnection
 */
-func (deviceConn *DeviceConnection) Init(netConn NetworkConnection, deviceID string, remoteAddress string, userAgent string) error {
-    if deviceConn.id == "" {
-        deviceConn.id = uuid.New().String()
-        deviceConn.createdAt = time.Now().Unix()
-                
-        deviceConn.remoteAddress = remoteAddress
-        deviceConn.userAgent = userAgent
-        deviceConn.connection = netConn
-        deviceConn.deviceID = deviceID
+func NewDeviceConnection(netConn NetworkConnection, deviceID, remoteAddress, userAgent string) *DeviceConnection {
+    return &DeviceConnection {
+        id: uuid.New().String(),
+        createdAt: time.Now().Unix(),
+        remoteAddress: remoteAddress,
+        userAgent: userAgent,
+        connection: netConn,
+        deviceID: deviceID,
     }
-
-    return nil
-}
-
-/*
-MessageReceived A message was received from the connected device
-*/
-func (deviceConn *DeviceConnection) MessageReceived() {
-    deviceConn.stats.incomingMessages++
-    deviceConn.stats.lastIncomingMessageTimeStamp = time.Now().Unix()
-}
-
-/*
-MessageSent A message was sent to the connected device
-*/
-func (deviceConn *DeviceConnection) MessageSent() {
-    deviceConn.stats.outgoingMessages++
-    deviceConn.stats.lastOutgoingMessageTimeStamp = time.Now().Unix()
 }
 
 /*
@@ -107,6 +80,13 @@ func (deviceConn *DeviceConnection) DeviceID() string {
 }
 
 /*
+DeviceType Connected device's ID
+*/
+func (deviceConn *DeviceConnection) DeviceType() string {
+    return deviceConn.deviceType
+}
+
+/*
 UserAgent Connected device's user agent
 */
 func (deviceConn *DeviceConnection) UserAgent() string {
@@ -118,36 +98,6 @@ RemoteAddress Connected device's remote network address
 */
 func (deviceConn *DeviceConnection) RemoteAddress() string {
     return deviceConn.remoteAddress
-}
-
-/*
-IncomingMessages How many messages were received from the connected device
-*/
-func (deviceConn *DeviceConnection) IncomingMessages() uint64 {
-    return deviceConn.stats.incomingMessages
-}
-
-/*
-OutgoingMessages How many messages were sent to the connected device
-*/
-func (deviceConn *DeviceConnection) OutgoingMessages() uint64 {
-    return deviceConn.stats.outgoingMessages
-}
-
-/*
-LatestIncomingMessageTimeStamp When was the last time a message was received from 
-the connected device 
-*/
-func (deviceConn *DeviceConnection) LatestIncomingMessageTimeStamp() int64 {
-    return deviceConn.stats.lastOutgoingMessageTimeStamp
-}
-
-/*
-LatestOutgoingMessageTimeStamp When eas the last time a message was sent to
-the connected device 
-*/
-func (deviceConn *DeviceConnection) LatestOutgoingMessageTimeStamp() int64 {
-    return deviceConn.stats.lastOutgoingMessageTimeStamp
 }
 
 /*
