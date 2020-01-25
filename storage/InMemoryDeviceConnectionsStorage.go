@@ -3,9 +3,9 @@ package storage
 import(
     "sync"
     "errors"
-	
-	"github.com/nnset/iot-cloud-connector/connections"
-	"github.com/google/uuid"
+
+    "github.com/nnset/iot-cloud-connector/connections"
+    "github.com/google/uuid"
 )
 
 /*
@@ -13,9 +13,9 @@ InMemoryDeviceConnectionsStorage Concurrency safe in memory implementation of
 DeviceConnectionsStorageInterface
 */
 type InMemoryDeviceConnectionsStorage struct {
-    id               	string    
-    activeConnections   map[string]*connections.DeviceConnectionStatus
-    dataMutex           sync.Mutex
+    id                string    
+    activeConnections map[string]*connections.DeviceConnectionStatus
+    dataMutex         sync.Mutex
 }
 
 /*
@@ -24,8 +24,8 @@ NewInMemoryDeviceConnectionsStorage Returns a new instance
 func NewInMemoryDeviceConnectionsStorage() InMemoryDeviceConnectionsStorage {
     return InMemoryDeviceConnectionsStorage {
         id: uuid.New().String(),
-		activeConnections: make(map[string]*connections.DeviceConnectionStatus),
-		dataMutex: sync.Mutex{},
+        activeConnections: make(map[string]*connections.DeviceConnectionStatus),
+        dataMutex: sync.Mutex{},
     }
 }
 
@@ -39,11 +39,11 @@ func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, dev
     _, alreadyConnected := storage.activeConnections[connectionID]
 
     if alreadyConnected {
-		return errors.New("Connection already established")
+        return errors.New("Connection already established")
     }
 
-	storage.activeConnections[connectionID] = 
-		connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
+    storage.activeConnections[connectionID] = 
+    connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
 
     return nil    
 }
@@ -58,8 +58,8 @@ func (storage *InMemoryDeviceConnectionsStorage) Delete(connectionID string) err
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
-		//return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
-		return nil
+        //return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
+        return nil
     }
 
     delete(storage.activeConnections, connectionID)
@@ -100,7 +100,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageReceived(connectionID st
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
-		return errors.New("Connection nor found")
+        return errors.New("Connection nor found")
     }
     
     storage.activeConnections[connectionID].MessageReceived()
@@ -118,7 +118,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageSent(connectionID string
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
-		return errors.New("Connection nor found")
+        return errors.New("Connection nor found")
     }
     
     storage.activeConnections[connectionID].MessageSent()
