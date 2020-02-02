@@ -18,6 +18,9 @@ type DeviceConnectionsStorageInterface interface {
     MessageReceived(connectionID string) error  // Updates incoming messages count
     MessageSent(connectionID string) error  // Updates outgoing messages count
 
+	ReceivedMessages(connectionID string) uint64
+    SentMessages(connectionID string) uint64
+
     IsDeviceConnected(deviceID string) bool
     TotalConnections() int
 }

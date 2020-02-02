@@ -21,8 +21,8 @@ type InMemoryDeviceConnectionsStorage struct {
 /*
 NewInMemoryDeviceConnectionsStorage Returns a new instance
 */
-func NewInMemoryDeviceConnectionsStorage() InMemoryDeviceConnectionsStorage {
-    return InMemoryDeviceConnectionsStorage {
+func NewInMemoryDeviceConnectionsStorage() *InMemoryDeviceConnectionsStorage {
+    return &InMemoryDeviceConnectionsStorage {
         id: uuid.New().String(),
         activeConnections: make(map[string]*connections.DeviceConnectionStatus),
         dataMutex: sync.Mutex{},
@@ -43,7 +43,7 @@ func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, dev
     }
 
     storage.activeConnections[connectionID] = 
-    connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
+    	connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
 
     return nil    
 }
@@ -140,4 +140,32 @@ TotalConnections How many connections are established
 */
 func (storage *InMemoryDeviceConnectionsStorage) TotalConnections() int {
     return len(storage.activeConnections)
+}
+
+/*
+ReceivedMessages How many messages current server received from a given connection.
+If connection does not exists 0 is returned.
+*/
+func (storage *InMemoryDeviceConnectionsStorage) ReceivedMessages(connectionID string) uint64 {
+	_, exists := storage.activeConnections[connectionID]
+
+    if !exists {
+        return 0
+    }
+    
+    return storage.activeConnections[connectionID].ReceivedMessages()
+}
+
+/*
+SentMessages How many messages current server sent to a given connection.
+If connection does not exists 0 is returned.
+*/
+func (storage *InMemoryDeviceConnectionsStorage) SentMessages(connectionID string) uint64 {
+	_, exists := storage.activeConnections[connectionID]
+
+    if !exists {
+        return 0
+    }
+    
+    return storage.activeConnections[connectionID].SentMessages()
 }

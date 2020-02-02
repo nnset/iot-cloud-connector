@@ -29,6 +29,7 @@ type CloudConnector struct {
 
     server                 ServerInterface // Custom implementation of a server that sets how 
     connections            storage.DeviceConnectionsStorageInterface  // Where connections information is stored
+    serverIsOnline         bool 
 }
 
 /*
@@ -48,6 +49,7 @@ func  NewCloudConnector(
         log: log,
         server: server,
         connections: connections,
+        serverIsOnline: false,
     }
 }
 
@@ -80,6 +82,7 @@ func (cloudConnector *CloudConnector) Start() error {
     cloudConnector.log.Info("Cloud Connector stopped.")
     cloudConnector.log.Info("  Total messages processed: ", cloudConnector.totalMessagesProcessed)
     cloudConnector.log.Infof("  Uptime: %d seconds", uptime)
+    cloudConnector.log.Infof("  Server: %t", cloudConnector.serverIsOnline)
 
     return err
 }
@@ -88,12 +91,17 @@ func (cloudConnector *CloudConnector) startServer() {
     cloudConnector.log.Infof("Starting server %s", cloudConnector.server.Name())
 
     cloudConnector.server.Start(cloudConnector)
+    cloudConnector.serverIsOnline = true
 }
 
 func (cloudConnector *CloudConnector) shutdownServer(serverShutdownIsComplete *chan bool) error {
     cloudConnector.log.Infof("Shutting server %s", cloudConnector.server.Name())
 
-    return cloudConnector.server.Shutdown(serverShutdownIsComplete)
+    err := cloudConnector.server.Shutdown(serverShutdownIsComplete)
+
+    cloudConnector.serverIsOnline = false
+        
+    return err
 }
 
 /*
@@ -103,7 +111,8 @@ with a device so CloudConnector may handle connection's stats
 func (cloudConnector *CloudConnector) ConnectionEstablished(connection *connections.DeviceConnection) error {
     _, err := cloudConnector.connections.Get(connection.ID())
 
-    if err != nil {
+    if err == nil {
+		cloudConnector.log.Error(err)
         return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
     }
 
@@ -115,7 +124,7 @@ func (cloudConnector *CloudConnector) ConnectionEstablished(connection *connecti
         connection.RemoteAddress(),
     )
 
-    cloudConnector.log.Debugf("New connection added #s", connection.ID())
+    cloudConnector.log.Debugf("New connection added #%s", connection.ID())
     cloudConnector.log.Debugf("  Monitored connections: %d", cloudConnector.connections.TotalConnections())
     cloudConnector.log.Debugf("  System memory: %d MB", cloudConnector.systemMemory())
     cloudConnector.log.Debugf("  Total allocated memory: %d MB", cloudConnector.totalAllocatedMemory())
@@ -139,7 +148,7 @@ func (cloudConnector *CloudConnector) ConnectionClosed(
         return err
     }
     
-    cloudConnector.log.Debugf("Closing connection #%s with device #%s from %s : %s" , stats.DeviceID(), stats.RemoteAddress(), reason)
+    cloudConnector.log.Debugf("Closing connection #%s with device #%s from %s : %s",connectionID, stats.DeviceID(), stats.RemoteAddress(), reason)
     cloudConnector.log.Debugf("Total messages received: %d", stats.ReceivedMessages())
     cloudConnector.log.Debugf("Total messages sent: %d", stats.SentMessages())
 
@@ -199,4 +208,39 @@ func (cloudConnector *CloudConnector) totalAllocatedMemory() uint {
 
 func (cloudConnector *CloudConnector) totalGoRoutinesSpawned() int {
     return runtime.NumGoroutine()
+}
+
+/*
+ID Current Id
+*/
+func (cloudConnector *CloudConnector) ID() string {
+    return cloudConnector.id
+}
+
+/*
+IsServerOnline Is the server that handles connections and messages online?
+*/
+func (cloudConnector *CloudConnector) IsServerOnline() bool {
+    return cloudConnector.serverIsOnline
+}
+
+/*
+TotalConnections How many connections are alive
+*/
+func (cloudConnector *CloudConnector) TotalConnections() int {
+    return cloudConnector.connections.TotalConnections()
+}
+
+/*
+ReceivedMessages How many messages has the server received from a given connection
+*/
+func (cloudConnector *CloudConnector) ReceivedMessages(connectionID string) uint64 {
+    return cloudConnector.connections.ReceivedMessages(connectionID)
+}
+
+/*
+SentMessages How many messages has the server sent to a given connection
+*/
+func (cloudConnector *CloudConnector) SentMessages(connectionID string) uint64 {
+    return cloudConnector.connections.SentMessages(connectionID)
 }
