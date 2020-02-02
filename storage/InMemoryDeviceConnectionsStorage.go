@@ -43,7 +43,7 @@ func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, dev
     }
 
     storage.activeConnections[connectionID] = 
-    	connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
+        connections.NewDeviceConnectionStatus(connectionID, deviceID, deviceType, userAgent, remoteAddress)
 
     return nil    
 }
@@ -147,7 +147,7 @@ ReceivedMessages How many messages current server received from a given connecti
 If connection does not exists 0 is returned.
 */
 func (storage *InMemoryDeviceConnectionsStorage) ReceivedMessages(connectionID string) uint64 {
-	_, exists := storage.activeConnections[connectionID]
+    _, exists := storage.activeConnections[connectionID]
 
     if !exists {
         return 0
@@ -161,7 +161,7 @@ SentMessages How many messages current server sent to a given connection.
 If connection does not exists 0 is returned.
 */
 func (storage *InMemoryDeviceConnectionsStorage) SentMessages(connectionID string) uint64 {
-	_, exists := storage.activeConnections[connectionID]
+    _, exists := storage.activeConnections[connectionID]
 
     if !exists {
         return 0

@@ -6,8 +6,8 @@ import (
     "time"
     "testing"
     "github.com/sirupsen/logrus"
-	"github.com/nnset/iot-cloud-connector/storage"
-	"github.com/nnset/iot-cloud-connector/connections"
+    "github.com/nnset/iot-cloud-connector/storage"
+    "github.com/nnset/iot-cloud-connector/connections"
     "gotest.tools/assert"
     //is "gotest.tools/assert/cmp"
     "github.com/google/uuid"
@@ -25,7 +25,7 @@ func createLogger() *logrus.Logger {
         log.Out = file
     } else {
         fmt.Println("Using stdErr for log")
-    }         
+    }
 
     return log
 }
@@ -141,14 +141,14 @@ func TestIncomingConnectionsShouldUpdateCloudConnectorStats(t *testing.T) {
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	deviceConnection := connections.NewDeviceConnection(
-		&dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
-	)
-	
-	err := cloudConnector.ConnectionEstablished(deviceConnection)
+    deviceConnection := connections.NewDeviceConnection(
+        &dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
+    )
+    
+    err := cloudConnector.ConnectionEstablished(deviceConnection)
 
-	assert.Assert(t, err == nil, err)
-	assert.Assert(t, cloudConnector.TotalConnections() == 1)
+    assert.Assert(t, err == nil, err)
+    assert.Assert(t, cloudConnector.TotalConnections() == 1)
 }
 
 func TestClosingConnectionsShouldUpdateCloudConnectorStats(t *testing.T) {
@@ -160,19 +160,19 @@ func TestClosingConnectionsShouldUpdateCloudConnectorStats(t *testing.T) {
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	deviceConnection := connections.NewDeviceConnection(
-		&dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
-	)
-	
-	err := cloudConnector.ConnectionEstablished(deviceConnection)
+    deviceConnection := connections.NewDeviceConnection(
+        &dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
+    )
+    
+    err := cloudConnector.ConnectionEstablished(deviceConnection)
 
-	assert.Assert(t, err == nil, err)
-	assert.Assert(t, cloudConnector.TotalConnections() == 1)
+    assert.Assert(t, err == nil, err)
+    assert.Assert(t, cloudConnector.TotalConnections() == 1)
 
-	err = cloudConnector.ConnectionClosed(deviceConnection.ID(), connections.StatusNormalClosure, "connection closed")
-	
-	assert.Assert(t, err == nil, err)
-	assert.Assert(t, cloudConnector.TotalConnections() == 0)
+    err = cloudConnector.ConnectionClosed(deviceConnection.ID(), connections.StatusNormalClosure, "connection closed")
+    
+    assert.Assert(t, err == nil, err)
+    assert.Assert(t, cloudConnector.TotalConnections() == 0)
 }
 
 func TestEstablishedConnectionsMustHaveDifferentIds(t *testing.T) {
@@ -184,21 +184,21 @@ func TestEstablishedConnectionsMustHaveDifferentIds(t *testing.T) {
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	deviceConnection := connections.NewDeviceConnection(
-		&dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
-	)
-	
-	err := cloudConnector.ConnectionEstablished(deviceConnection)
+    deviceConnection := connections.NewDeviceConnection(
+        &dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
+    )
+    
+    err := cloudConnector.ConnectionEstablished(deviceConnection)
 
-	assert.Assert(t, err == nil, err)
-	assert.Assert(t, cloudConnector.TotalConnections() == 1)
+    assert.Assert(t, err == nil, err)
+    assert.Assert(t, cloudConnector.TotalConnections() == 1)
 
-	err = cloudConnector.ConnectionEstablished(deviceConnection)
-	
-	expectedErrorMessage := fmt.Sprintf("Connection rejected. Connection #%s with device #device_id was already established.", deviceConnection.ID())
+    err = cloudConnector.ConnectionEstablished(deviceConnection)
+    
+    expectedErrorMessage := fmt.Sprintf("Connection rejected. Connection #%s with device #device_id was already established.", deviceConnection.ID())
 
-	assert.Error(t, err, expectedErrorMessage)
-	assert.Assert(t, cloudConnector.TotalConnections() == 1)
+    assert.Error(t, err, expectedErrorMessage)
+    assert.Assert(t, cloudConnector.TotalConnections() == 1)
 }
 
 func TestClosingAnInvalidConnectionShouldReturnAnError(t *testing.T) {
@@ -210,10 +210,10 @@ func TestClosingAnInvalidConnectionShouldReturnAnError(t *testing.T) {
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	err := cloudConnector.ConnectionClosed("dummy_id", connections.StatusNormalClosure, "connection closed")
-	
-	assert.Error(t, err, "Connection not found")
-	assert.Assert(t, cloudConnector.TotalConnections() == 0)
+    err := cloudConnector.ConnectionClosed("dummy_id", connections.StatusNormalClosure, "connection closed")
+    
+    assert.Error(t, err, "Connection not found")
+    assert.Assert(t, cloudConnector.TotalConnections() == 0)
 }
 
 func TestReceivingMessagesShouldUpdateCloudConnectorStats(t *testing.T) {
@@ -225,17 +225,17 @@ func TestReceivingMessagesShouldUpdateCloudConnectorStats(t *testing.T) {
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	deviceConnection := connections.NewDeviceConnection(
-		&dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
-	)
-	
-	err := cloudConnector.ConnectionEstablished(deviceConnection)
-	assert.Assert(t, err == nil, err)
-	
-	cloudConnector.MessageReceived(deviceConnection.ID())
+    deviceConnection := connections.NewDeviceConnection(
+        &dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
+    )
+    
+    err := cloudConnector.ConnectionEstablished(deviceConnection)
+    assert.Assert(t, err == nil, err)
+    
+    cloudConnector.MessageReceived(deviceConnection.ID())
 
-	assert.Assert(t, cloudConnector.ReceivedMessages(deviceConnection.ID()) == 1)
-	assert.Assert(t, cloudConnector.SentMessages(deviceConnection.ID()) == 0)
+    assert.Assert(t, cloudConnector.ReceivedMessages(deviceConnection.ID()) == 1)
+    assert.Assert(t, cloudConnector.SentMessages(deviceConnection.ID()) == 0)
 }
 
 func TestSendingMessagesToAConnectedDeviceShouldUpdateCloudConnectorStats(t *testing.T) {
@@ -247,15 +247,15 @@ func TestSendingMessagesToAConnectedDeviceShouldUpdateCloudConnectorStats(t *tes
         &dummyServer{}, storage.NewInMemoryDeviceConnectionsStorage(),
     )
 
-	deviceConnection := connections.NewDeviceConnection(
-		&dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
-	)
-	
-	err := cloudConnector.ConnectionEstablished(deviceConnection)
-	assert.Assert(t, err == nil, err)
-	
-	cloudConnector.MessageSent(deviceConnection.ID())
+    deviceConnection := connections.NewDeviceConnection(
+        &dummyNetworkConnection{}, "device_id", "10.10.10.1", "user_agent",
+    )
+    
+    err := cloudConnector.ConnectionEstablished(deviceConnection)
+    assert.Assert(t, err == nil, err)
+    
+    cloudConnector.MessageSent(deviceConnection.ID())
 
-	assert.Assert(t, cloudConnector.SentMessages(deviceConnection.ID()) == 1)
-	assert.Assert(t, cloudConnector.ReceivedMessages(deviceConnection.ID()) == 0)
+    assert.Assert(t, cloudConnector.SentMessages(deviceConnection.ID()) == 1)
+    assert.Assert(t, cloudConnector.ReceivedMessages(deviceConnection.ID()) == 0)
 }
