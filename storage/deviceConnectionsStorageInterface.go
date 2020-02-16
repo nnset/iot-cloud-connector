@@ -15,12 +15,15 @@ type DeviceConnectionsStorageInterface interface {
     Get(connectionID string) (connections.DeviceConnectionStatus, error)  // Gets an stored connection copy
     GetByDeviceID(deviceID string) (connections.DeviceConnectionStatus, error)  // Gets an stored connection copy
 
-    MessageReceived(connectionID string) error  // Updates incoming messages count
-    MessageSent(connectionID string) error  // Updates outgoing messages count
+    IncomingMessageReceived(connectionID string) error  // Updates incoming messages count
+    OutgoingMessageSent(connectionID string) error  // Updates outgoing messages count
 
-    ReceivedMessages(connectionID string) uint64
-    SentMessages(connectionID string) uint64
+    IncomingMessages(connectionID string) uint
+    OutgoingMessages(connectionID string) uint
+
+    TotalIncomingMessages() uint
+    TotalOutgoingMessages() uint
 
     IsDeviceConnected(deviceID string) bool
-    TotalConnections() int
+    OpenConnections() uint
 }

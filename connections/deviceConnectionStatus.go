@@ -18,8 +18,8 @@ type DeviceConnectionStatus struct {
     createdAt      int64
     lastReceivedMessageTimeStamp int64
     lastSentMessageTimeStamp int64
-    receivedMessages     uint64
-    sentMessages     uint64
+    receivedMessages     uint
+    sentMessages     uint
 }
 
 /*
@@ -99,14 +99,14 @@ func (status *DeviceConnectionStatus) LastSentMessageTimeStamp() int64 {
 /*
 ReceivedMessages How many messages have we received from the connection
 */
-func (status *DeviceConnectionStatus) ReceivedMessages() uint64 {
+func (status *DeviceConnectionStatus) ReceivedMessages() uint {
     return status.receivedMessages
 }
 
 /*
 SentMessages How many messages have we sent to the connection
 */
-func (status *DeviceConnectionStatus) SentMessages() uint64 {
+func (status *DeviceConnectionStatus) SentMessages() uint {
     return status.sentMessages
 }
 

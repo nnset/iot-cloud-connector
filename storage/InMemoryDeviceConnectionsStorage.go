@@ -16,6 +16,8 @@ type InMemoryDeviceConnectionsStorage struct {
     id                string    
     activeConnections map[string]*connections.DeviceConnectionStatus
     dataMutex         sync.Mutex
+    totalSentMessages uint
+    totalReceivedMessages uint
 }
 
 /*
@@ -58,7 +60,6 @@ func (storage *InMemoryDeviceConnectionsStorage) Delete(connectionID string) err
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
-        //return fmt.Errorf(fmt.Sprintf("Connection rejected. Connection #%s with device #%s was already established.", connection.ID(), connection.DeviceID()))
         return nil
     }
 
@@ -93,7 +94,7 @@ func (storage *InMemoryDeviceConnectionsStorage) GetByDeviceID(connectionID stri
 /*
 MessageReceived Updates a connection when a message is received
 */
-func (storage *InMemoryDeviceConnectionsStorage) MessageReceived(connectionID string) error {
+func (storage *InMemoryDeviceConnectionsStorage) IncomingMessageReceived(connectionID string) error {
     storage.dataMutex.Lock()
     defer storage.dataMutex.Unlock()
 
@@ -104,6 +105,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageReceived(connectionID st
     }
     
     storage.activeConnections[connectionID].MessageReceived()
+    storage.totalReceivedMessages++
 
     return nil
 }
@@ -111,7 +113,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageReceived(connectionID st
 /*
 MessageSent Updates a connection when a message is sent
 */
-func (storage *InMemoryDeviceConnectionsStorage) MessageSent(connectionID string) error {
+func (storage *InMemoryDeviceConnectionsStorage) OutgoingMessageSent(connectionID string) error {
     storage.dataMutex.Lock()
     defer storage.dataMutex.Unlock()
 
@@ -122,6 +124,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageSent(connectionID string
     }
     
     storage.activeConnections[connectionID].MessageSent()
+    storage.totalSentMessages++
 
     return nil
 }
@@ -138,15 +141,15 @@ func (storage *InMemoryDeviceConnectionsStorage) IsDeviceConnected(connectionID 
 /*
 TotalConnections How many connections are established
 */
-func (storage *InMemoryDeviceConnectionsStorage) TotalConnections() int {
-    return len(storage.activeConnections)
+func (storage *InMemoryDeviceConnectionsStorage) OpenConnections() uint {
+    return uint(len(storage.activeConnections))
 }
 
 /*
 ReceivedMessages How many messages current server received from a given connection.
 If connection does not exists 0 is returned.
 */
-func (storage *InMemoryDeviceConnectionsStorage) ReceivedMessages(connectionID string) uint64 {
+func (storage *InMemoryDeviceConnectionsStorage) IncomingMessages(connectionID string) uint {
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
@@ -160,7 +163,7 @@ func (storage *InMemoryDeviceConnectionsStorage) ReceivedMessages(connectionID s
 SentMessages How many messages current server sent to a given connection.
 If connection does not exists 0 is returned.
 */
-func (storage *InMemoryDeviceConnectionsStorage) SentMessages(connectionID string) uint64 {
+func (storage *InMemoryDeviceConnectionsStorage) OutgoingMessages(connectionID string) uint {
     _, exists := storage.activeConnections[connectionID]
 
     if !exists {
@@ -168,4 +171,18 @@ func (storage *InMemoryDeviceConnectionsStorage) SentMessages(connectionID strin
     }
     
     return storage.activeConnections[connectionID].SentMessages()
+}
+
+/*
+TotalReceivedMessages
+*/
+func (storage *InMemoryDeviceConnectionsStorage) TotalIncomingMessages() uint {
+    return storage.totalReceivedMessages
+}
+
+/*
+TotalSentMessages
+*/
+func (storage *InMemoryDeviceConnectionsStorage) TotalOutgoingMessages() uint {
+    return storage.totalSentMessages
 }
