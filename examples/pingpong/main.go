@@ -1,57 +1,58 @@
 package main
 
 import (
-    "fmt"
-    "os"
-    "os/signal"
-    "syscall"
-    "github.com/nnset/iot-cloud-connector/servers"
-    "github.com/nnset/iot-cloud-connector/handlers"
-    "github.com/sirupsen/logrus"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/nnset/iot-cloud-connector/handlers"
+	"github.com/nnset/iot-cloud-connector/servers"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
-    log := createLogger()
-    operatingSystemSignal := make(chan os.Signal, 1)
-    shutdownServer := make(chan bool, 1)
+	log := createLogger()
+	operatingSystemSignal := make(chan os.Signal, 1)
+	shutdownServer := make(chan bool, 1)
 
-    signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
-    go func(log *logrus.Logger) {
-        sig := <-operatingSystemSignal
-        log.Debugf("Signal received : %s", sig)
-        log.Debug("Shutting down main")
-        shutdownServer <- true
-    }(log)
+	go func(log *logrus.Logger) {
+		sig := <-operatingSystemSignal
+		log.Debugf("Signal received : %s", sig)
+		log.Debug("Shutting down main")
+		shutdownServer <- true
+	}(log)
 
-    connectionsHandler := handlers.NewSamplePingPongHandler(
-        "localhost", "8080", "tcp",
-    )
+	connectionsHandler := handlers.NewSamplePingPongHandler(
+		"localhost", "8080", "tcp",
+	)
 
-    s := servers.NewCloudServer(
-        "localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler,
-    )
+	s := servers.NewCloudServer(
+		"localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler,
+	)
 
-    s.Start()
-    
-    log.Debug("Finished shutdown")
+	s.Start()
 
-    os.Exit(0)
+	log.Debug("Finished shutdown")
+
+	os.Exit(0)
 }
 
 func createLogger() *logrus.Logger {
-    var log = logrus.New()
-    
-    log.SetLevel(logrus.DebugLevel)
-    log.Out = os.Stderr
+	var log = logrus.New()
 
-    file, err := os.OpenFile("../var/log/ping-pong.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-    
-    if err == nil {
-        log.Out = file
-    } else {
-        fmt.Println("Using stdErr for log")
-    }         
+	log.SetLevel(logrus.DebugLevel)
+	log.Out = os.Stderr
 
-    return log
+	file, err := os.OpenFile("../var/log/ping-pong.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	if err == nil {
+		log.Out = file
+	} else {
+		fmt.Println("Using stdErr for log")
+	}
+
+	return log
 }
