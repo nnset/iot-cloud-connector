@@ -119,8 +119,15 @@ func (handler *SamplePingPongHandler) handleConnection(w http.ResponseWriter, r 
 /*
 IncomingMessagesProcessed How many messages from all connections have been processed
 */
-func (handler *SamplePingPongHandler) IncomingMessagesProcessed() uint {
+func (handler *SamplePingPongHandler) IncomingMessages() uint {
 	return handler.messages
+}
+
+/*
+OutgoingMessages How many messages this server has sent to the connected clients
+*/
+func (handler *SamplePingPongHandler) OutgoingMessages() uint {
+	return 0
 }
 
 /*

@@ -22,10 +22,26 @@ type CloudServer struct {
 	log                        *logrus.Logger
 	connectionsHandlerShutdown *chan bool
 	connectionsHandler         handlers.ConnectionsHandlerInterface
-	apiHost                    string
-	apiPort                    string
 	api                        *CloudServerAPI
+	state                      CloudServerState
 }
+
+/*
+CloudServerState used to know on which state is the server
+*/
+type CloudServerState int
+
+/*
+	CloudServers go across some status :
+	- CloudServerCreated
+	- CloudServerStarted
+	- CloudServerStopped
+*/
+const (
+	CloudServerCreated CloudServerState = 1
+	CloudServerStarted CloudServerState = 2
+	CloudServerStopped CloudServerState = 3
+)
 
 /*
 NewCloudServer Creates a new instance of CloudServer
@@ -44,6 +60,7 @@ func NewCloudServer(
 		connectionsHandlerShutdown: connectionsHandlerShutdown,
 		connectionsHandler:         connectionsHandler,
 		startTime:                  time.Now().Unix(),
+		state:                      CloudServerCreated,
 	}
 }
 
@@ -65,6 +82,8 @@ func (server *CloudServer) Start() {
 
 	go server.connectionsHandler.Listen(server.connectionsHandlerShutdown, &closingConnectionsIsComplete, server.log)
 
+	server.state = CloudServerStarted
+
 	<-*server.connectionsHandlerShutdown
 
 	server.log.Info("CloudServer received shutdown signal, proceding to close open connections")
@@ -82,10 +101,18 @@ func (server *CloudServer) Start() {
 	server.api.Stop()
 
 	uptime := server.Uptime()
+	server.state = CloudServerStopped
 
 	server.log.Info("CloudServer stopped.")
-	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.IncomingMessagesProcessed())
+	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.IncomingMessages())
 	server.log.Infof("  Uptime: %d seconds", uptime)
+}
+
+/*
+ID Server's uuid
+*/
+func (server *CloudServer) ID() string {
+	return server.id
 }
 
 /*
@@ -100,35 +127,66 @@ func (server *CloudServer) Uptime() int64 {
 }
 
 /*
-OpenConnections
+OpenConnections How many connections are currently open against this server
 */
 func (server *CloudServer) OpenConnections() uint {
 	return server.connectionsHandler.OpenConnections()
 }
 
 /*
-IncomingMessagesProcessed
+IncomingMessages How many incoming messages were processed
 */
-func (server *CloudServer) IncomingMessagesProcessed() uint {
-	return server.connectionsHandler.IncomingMessagesProcessed()
+func (server *CloudServer) IncomingMessages() uint {
+	return server.connectionsHandler.IncomingMessages()
 }
 
-// total mega bytes of memory obtained from the OS.
-func (server *CloudServer) systemMemory() uint {
+/*
+IncomingMessages How many messages this server sent to the connected clients
+*/
+func (server *CloudServer) OutgoingMessages() uint {
+	return server.connectionsHandler.OutgoingMessages()
+}
+
+/*
+SystemMemory total mega bytes of memory obtained from the OS.
+*/
+func (server *CloudServer) SystemMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
 	return uint(m.Sys / 1024 / 1024)
 }
 
-// Cumulative mega bytes allocated for heap objects.
-func (server *CloudServer) totalAllocatedMemory() uint {
+/*
+AllocatedMemory mega bytes allocated for heap objects.
+*/
+func (server *CloudServer) AllocatedMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	return uint(m.TotalAlloc / 1024 / 1024)
+	return uint(m.Alloc / 1024 / 1024)
 }
 
-func (server *CloudServer) totalGoRoutinesSpawned() int {
+/*
+HeapAllocatedMemory mega bytes of allocated heap objects.
+*/
+func (server *CloudServer) HeapAllocatedMemory() uint {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	return uint(m.HeapAlloc / 1024 / 1024)
+}
+
+/*
+GoRoutinesSpawned How many Go routines are currently being executed
+*/
+func (server *CloudServer) GoRoutinesSpawned() int {
 	return runtime.NumGoroutine()
+}
+
+/*
+State CloudServer current state
+*/
+func (server *CloudServer) State() CloudServerState {
+	return server.state
 }

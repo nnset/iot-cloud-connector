@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -13,9 +14,9 @@ import (
 
 /*
 SampleSocketsHandler Simple example of a ConnectionHandler that handles
-incoming permanent socket connections expecting messages using a JSON format
+incoming permanent socket connections. Expected messages should use JSON format
 with fields defined in payload struct.
-For each message received this handler will reply with a 'OK' also using payload
+For each message received, this handler will reply with a 'OK' also using payload
 struct.
 */
 type SampleSocketsHandler struct {
@@ -28,6 +29,7 @@ type SampleSocketsHandler struct {
 
 	activeConnections storage.DeviceConnectionsStorageInterface
 	dataMutex         *sync.Mutex
+	connections       map[string]net.Conn
 }
 
 type payload struct {
@@ -48,6 +50,7 @@ func NewSampleSocketsHandler(address, port, network string) *SampleSocketsHandle
 		startTime:         time.Now().Unix(),
 		activeConnections: storage.NewInMemoryDeviceConnectionsStorage(),
 		dataMutex:         &sync.Mutex{},
+		connections:       make(map[string]net.Conn),
 	}
 }
 
@@ -67,26 +70,21 @@ func (handler *SampleSocketsHandler) Listen(shutdownChannel, shutdownIsCompleteC
 
 	defer portListener.Close()
 
-	for {
-		conn, err := portListener.Accept()
+	go handler.acceptConnections(portListener)
 
-		if err != nil {
-			log.Fatalln(err)
-			handler.log.Errorf("Error accepting connection: %s", err)
-			continue // TODO Continue or break
-		}
+	<-*shutdownChannel
 
-		go handler.handleConnection(conn)
-
-		if <-*shutdownChannel {
-			handler.log.Debugf("SampleSocketsHandler received shutdown signal")
-			break
-		}
-	}
-
+	handler.log.Debugf("SampleSocketsHandler received shutdown signal")
 	handler.log.Debugf("SampleSocketsHandler is closing connections")
 
-	// TODO
+	for id, connection := range handler.connections {
+		handler.log.Debugf("Closing connection #%s", id)
+		err = connection.Close()
+
+		if err != nil {
+			handler.log.Debugf("Unable to close connection %s", err)
+		}
+	}
 
 	*shutdownIsCompleteChannel <- true
 
@@ -95,11 +93,25 @@ func (handler *SampleSocketsHandler) Listen(shutdownChannel, shutdownIsCompleteC
 	return nil
 }
 
-func (handler *SampleSocketsHandler) handleConnection(connection net.Conn) {
-	handler.log.Debugf("New connection from %s", connection.RemoteAddr().String())
-	defer connection.Close()
+func (handler *SampleSocketsHandler) acceptConnections(portListener net.Listener) {
+	for {
+		conn, err := portListener.Accept()
 
+		if err != nil {
+			log.Fatalln(err)
+			handler.log.Errorf("Error accepting connection: %s", err)
+
+			return
+		}
+
+		go handler.handleConnection(conn)
+	}
+}
+
+func (handler *SampleSocketsHandler) handleConnection(connection net.Conn) {
 	connectionID := uuid.New().String()
+	handler.log.Debugf("New connection %s from %s", connectionID, connection.RemoteAddr().String())
+	defer connection.Close()
 
 	handler.activeConnections.Add(
 		connectionID,
@@ -109,17 +121,21 @@ func (handler *SampleSocketsHandler) handleConnection(connection net.Conn) {
 		connection.RemoteAddr().String(),
 	)
 
+	handler.dataMutex.Lock()
+	handler.connections[connectionID] = connection
+	handler.dataMutex.Unlock()
+
 	for {
 		var requestPayload payload
 		decoder := json.NewDecoder(connection)
 		err := decoder.Decode(&requestPayload)
 
 		if err != nil {
-			handler.log.Debugf("Unable to decode payload: %s", err)
+			handler.log.Debugf("Unable to process message: %s", err)
 			break
 		}
 
-		handler.log.Debugf("Mesage received from %s: %s", requestPayload.Sender, requestPayload.Body)
+		handler.log.Debugf("Connection #%s Mesage received from '%s': %s", connectionID, requestPayload.Sender, requestPayload.Body)
 		handler.activeConnections.IncomingMessageReceived(connectionID) // We ignore errors on this example code
 
 		responsePayload := payload{
@@ -144,10 +160,17 @@ func (handler *SampleSocketsHandler) handleConnection(connection net.Conn) {
 }
 
 /*
-IncomingMessagesProcessed How many messages from all connections have been processed
+IncomingMessages How many messages from all connections have been processed
 */
-func (handler *SampleSocketsHandler) IncomingMessagesProcessed() uint {
+func (handler *SampleSocketsHandler) IncomingMessages() uint {
 	return handler.activeConnections.TotalIncomingMessages()
+}
+
+/*
+OutgoingMessages How many messages have been sent from this server to the connected clients
+*/
+func (handler *SampleSocketsHandler) OutgoingMessages() uint {
+	return handler.activeConnections.TotalOutgoingMessages()
 }
 
 /*

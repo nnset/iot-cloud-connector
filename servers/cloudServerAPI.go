@@ -12,7 +12,8 @@ import (
 )
 
 /*
-CloudServerAPI
+CloudServerAPI This REST API server will let you check for stats and status regarding the server
+and all its open connections
 */
 type CloudServerAPI struct {
 	address     string
@@ -23,7 +24,7 @@ type CloudServerAPI struct {
 }
 
 /*
-NewCloudServerAPI
+NewCloudServerAPI Creates a new API server
 */
 func NewCloudServerAPI(address, port string, log *logrus.Logger, cloudServer *CloudServer) *CloudServerAPI {
 
@@ -36,7 +37,7 @@ func NewCloudServerAPI(address, port string, log *logrus.Logger, cloudServer *Cl
 }
 
 /*
-Start
+Start Starts the API server on the configured port
 */
 func (api *CloudServerAPI) Start() {
 	api.cloudServer.log.Debug("CloudServerAPI seting up routes")
@@ -51,7 +52,7 @@ func (api *CloudServerAPI) Start() {
 		IdleTimeout:  15 * time.Second,
 	}
 
-	api.cloudServer.log.Debugf("CloudServerAPI listening to %s:%s", api.address, api.port)
+	api.cloudServer.log.Debugf("CloudServerAPI available at %s:%s", api.address, api.port)
 
 	// TODO api.httpServer.ListenAndServeTLS
 
@@ -61,10 +62,9 @@ func (api *CloudServerAPI) Start() {
 }
 
 func (api *CloudServerAPI) router() *mux.Router {
+	// TODO does mux have a middleware in order to perform auth ?
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/status/connections/count", api.connectionsCount)
-	router.HandleFunc("/status/uptime", api.uptime)
-	router.HandleFunc("/status/messages/incoming-processed", api.incomingMessagesProcessed)
+	router.HandleFunc("/status", api.status)
 
 	return router
 }
@@ -73,92 +73,103 @@ func (api *CloudServerAPI) router() *mux.Router {
 // Payloads
 //
 
-type connectionsCountPayload struct {
-	Count uint `json:"count"`
+type statusPayload struct {
+	Connections               uint    `json:"connections"`
+	Uptime                    int64   `json:"uptime"`
+	IncomingMessages          uint    `json:"incoming_messages"`
+	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
+	OutgoingMessages          uint    `json:"outgoing_messages"`
+	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
+	GoRoutines                int     `json:"go_routines"`
+	SystemMemory              uint    `json:"system_memory"`
+	AllocatedMemory           uint    `json:"allocated_memory"`
+	HeapAllocatedMemory       uint    `json:"heap_allocated_memory"`
 }
 
-type uptimePayload struct {
-	Uptime int64 `json:"uptime"`
+type errorPayload struct {
+	Error string `json:"error"`
 }
 
-type totalMessagesProcessedPayload struct {
-	Count uint `json:"count"`
+func (api *CloudServerAPI) restAPIHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+func (api *CloudServerAPI) authRequest(r *http.Request) error {
+	// TODO security layer
+	return nil
+}
+
+func (api *CloudServerAPI) unauthorized(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+
+	json.NewEncoder(w).Encode(
+		errorPayload{Error: "Unauthorized"},
+	)
 }
 
 /**
- * @api {get} /status/connections/count Open connections
- * @apiName OpenConnections
- * @apiDescription How many open connections are currently connected to this instance
+ * @api {get} /status Cloud server status
+ * @apiName ServerStatus
+ * @apiDescription Stats and status of the server
  * @apiGroup Status
  *
- * @apiSuccess {String} count Value in seconds
+ * @apiSuccess {Integer} connections How many connections are currently open.
+ * @apiSuccess {Integer} uptime Server uptime in seconds.
+ * @apiSuccess {Integer} incoming_messages How may messages the server received.
+ * @apiSuccess {Integer} incoming_messages_per_second How may messages the server is receiving per second.
+ * @apiSuccess {Integer} outgoing_messages How may messages the server sent to the connected clients.
+ * @apiSuccess {Integer} outgoing_messages_per_second How may messages the server is sending per second.
+ * @apiSuccess {Integer} go_routines How may Go routines are current spawned.
+ * @apiSuccess {Integer} system_memory Total mega bytes of memory obtained from the OS.
+ * @apiSuccess {Integer} allocated_memory Mega bytes allocated for heap objects.
+ * @apiSuccess {Integer} heap_allocated_memory Mega bytes of allocated heap objects.
+ *
  * @apiSuccessExample {json} Success-Response:
  *     HTTP/1.1 200 OK
  *     {
- *       "count": "7541"
+ *       "connections" : int,
+ *       "uptime": int,
+ *       "incoming_messages": int,
+ *       "incoming_messages_per_second": int,
+ *       "outgoing_messages": int,
+ *       "outgoing_messages_per_second": int,
+ *       "go_routines": int,
+ *       "system_memory": int,
+ *       "allocated_memory": int
  *     }
  */
-func (api *CloudServerAPI) connectionsCount(w http.ResponseWriter, r *http.Request) {
-	// TODO Auth request
+func (api *CloudServerAPI) status(w http.ResponseWriter, r *http.Request) {
+	if api.authRequest(r) != nil {
+		api.unauthorized(w)
+		return
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	api.restAPIHeaders(w)
 
-	payload := connectionsCountPayload{Count: api.cloudServer.OpenConnections()}
+	incomingMessages := api.cloudServer.IncomingMessages()
+	outgoingMessages := api.cloudServer.OutgoingMessages()
+	uptimeSeconds := api.cloudServer.Uptime() + 1
 
-	json.NewEncoder(w).Encode(payload)
-}
-
-/**
- * @api {get} /status/uptime Uptime
- * @apiDescription How many seconds the server has been up
- * @apiName Uptime
- * @apiGroup Status
- *
- * @apiSuccess {String} uptime seconds
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "uptime": "3605"
- *     }
- */
-func (api *CloudServerAPI) uptime(w http.ResponseWriter, r *http.Request) {
-	// TODO Auth request
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	payload := uptimePayload{Uptime: api.cloudServer.Uptime()}
-
-	json.NewEncoder(w).Encode(payload)
-}
-
-/**
- * @api {get} /status/messages/incoming-processed Incoming messages
- * @apiDescription How many messages (from client to this server) have been processed so far
- * @apiName IncomingMessages
- * @apiGroup Status
- *
- * @apiSuccess {String} count
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "count": "125784"
- *     }
- */
-func (api *CloudServerAPI) incomingMessagesProcessed(w http.ResponseWriter, r *http.Request) {
-	// TODO Auth request
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	payload := totalMessagesProcessedPayload{Count: api.cloudServer.IncomingMessagesProcessed()}
-
-	json.NewEncoder(w).Encode(payload)
+	json.NewEncoder(w).Encode(
+		statusPayload{
+			Connections:               api.cloudServer.OpenConnections(),
+			Uptime:                    api.cloudServer.Uptime(),
+			IncomingMessages:          incomingMessages,
+			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+			OutgoingMessages:          outgoingMessages,
+			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+			GoRoutines:                api.cloudServer.GoRoutinesSpawned(),
+			SystemMemory:              api.cloudServer.SystemMemory(),
+			AllocatedMemory:           api.cloudServer.AllocatedMemory(),
+			HeapAllocatedMemory:       api.cloudServer.HeapAllocatedMemory(),
+		},
+	)
 }
 
 /*
-Stop
+Stop Stops the API server
 @see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
 */
 func (api *CloudServerAPI) Stop() {

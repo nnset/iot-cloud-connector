@@ -11,6 +11,7 @@ just implement this interface so CloudConnector will be able to support your ser
 type ConnectionsHandlerInterface interface {
 	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error
 
-	IncomingMessagesProcessed() uint
+	IncomingMessages() uint
+	OutgoingMessages() uint
 	OpenConnections() uint
 }
