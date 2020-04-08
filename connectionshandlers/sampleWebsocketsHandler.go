@@ -68,6 +68,7 @@ func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsComple
 	// TODO Gracefully shutdown http.server
 	if handler.keyFile != "" {
 		handler.log.Debug("Serving websockets via wss (TLS ON) at " + handler.address + ":" + handler.port)
+		handler.log.Debugf("  Connect endpoint wss://%s:%s/connect", handler.address, handler.port)
 
 		err := http.ListenAndServeTLS(handler.address+":"+handler.port, handler.certFile, handler.keyFile, nil)
 
@@ -77,6 +78,7 @@ func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsComple
 		}
 	} else {
 		handler.log.Debug("Serving websockets via ws (TLS OFF) at " + handler.address + ":" + handler.port)
+		handler.log.Debugf("  Connect endpoint ws://%s:%s/connect", handler.address, handler.port)
 
 		err := http.ListenAndServe(handler.address+":"+handler.port, nil)
 
@@ -90,9 +92,8 @@ func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsComple
 }
 
 func (handler *SampleWebSocketsHandler) gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel *chan bool, outgoingDeliveriesTicker *time.Ticker) {
-	handler.log.Debugf("SampleWebsocketsHandler OK waiting for shutdown signal")
-
 	<-*shutdownChannel
+	handler.log.Debugf("SampleWebsocketsHandler shutdown signal received. Proceeding.")
 
 	handler.dataMutex.Lock()
 	handler.shutdownInProgress = true

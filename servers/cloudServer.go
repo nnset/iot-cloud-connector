@@ -10,26 +10,33 @@ import (
 )
 
 /*
-CloudServer Helps you controling the status of incoming connections to
-your server and also when to start and shut it down.
+CloudServer is the main process, once you Start() it, these processes are spawned :
+
+	- An instance of connectionshandlers.ConnectionsHandlerInterface
+		This is the instance you coded, there you handle your connections and business logic.
+		Check connectionshandlers/sample*.go files for some examples.
+
+	- An instance of CloudServerAPI
+		This opens a http/s server serving a JSON API where you can fetch the status of your connected
+		devices and interact with them in case you need it (this is still a TODO).
 */
 type CloudServer struct {
-	id                         string
-	address                    string
-	port                       string
-	network                    string
-	startTime                  int64
-	log                        *logrus.Logger
-	connectionsHandlerShutdown *chan bool
-	connectionsHandler         connectionshandlers.ConnectionsHandlerInterface
-	api                        *CloudServerAPI
-	state                      CloudServerState
+	id                 string
+	address            string
+	port               string
+	network            string
+	startTime          int64
+	log                *logrus.Logger
+	serverShutdown     *chan bool
+	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
+	api                *CloudServerAPI
+	state              CloudServerState
 }
 
 /*
-CloudServerState used to know on which state is the server
+CloudServerState Server's state
 */
-type CloudServerState int
+type CloudServerState string
 
 /*
 	CloudServers go across some status :
@@ -38,9 +45,9 @@ type CloudServerState int
 	- CloudServerStopped
 */
 const (
-	CloudServerCreated CloudServerState = 1
-	CloudServerStarted CloudServerState = 2
-	CloudServerStopped CloudServerState = 3
+	CloudServerCreated CloudServerState = "created"
+	CloudServerStarted CloudServerState = "started"
+	CloudServerStopped CloudServerState = "stopped"
 )
 
 /*
@@ -52,15 +59,15 @@ func NewCloudServer(
 	connectionsHandlerShutdown *chan bool,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface) *CloudServer {
 	return &CloudServer{
-		id:                         uuid.New().String(),
-		address:                    address,
-		port:                       port,
-		network:                    network,
-		log:                        log,
-		connectionsHandlerShutdown: connectionsHandlerShutdown,
-		connectionsHandler:         connectionsHandler,
-		startTime:                  time.Now().Unix(),
-		state:                      CloudServerCreated,
+		id:                 uuid.New().String(),
+		address:            address,
+		port:               port,
+		network:            network,
+		log:                log,
+		serverShutdown:     connectionsHandlerShutdown,
+		connectionsHandler: connectionsHandler,
+		startTime:          time.Now().Unix(),
+		state:              CloudServerCreated,
 	}
 }
 
@@ -70,42 +77,46 @@ Start Starts the server on the given host and port
 func (server *CloudServer) Start() {
 	server.log.Debugf("Starting CloudServer #%s at %s:%s", server.id, server.address, server.port)
 
-	if server.api == nil {
-		server.log.Debugf("Starting CloudServerAPI")
-		server.api = NewCloudServerAPI(server.address, server.port, server.log, server)
-		go server.api.Start()
-	}
+	connectionsHandlerShutdownIsComplete, shutdownConnectionsHandler := make(chan bool), make(chan bool)
 
-	server.log.Debugf("Starting CloudServer connections handler")
+	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.log)
 
-	closingConnectionsIsComplete := make(chan bool)
-
-	go server.connectionsHandler.Listen(server.connectionsHandlerShutdown, &closingConnectionsIsComplete, server.log)
+	server.startAPI()
 
 	server.state = CloudServerStarted
 
-	<-*server.connectionsHandlerShutdown
+	<-*server.serverShutdown
 
 	server.log.Info("CloudServer received shutdown signal")
 
-	*server.connectionsHandlerShutdown <- true
+	server.shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete)
+}
+
+func (server *CloudServer) startAPI() {
+	if server.api == nil {
+		server.api = NewCloudServerAPI(server.address, server.port, server.log, server)
+
+		go server.api.Start()
+	}
+}
+
+func (server *CloudServer) shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete chan bool) {
+	shutdownConnectionsHandler <- true
 
 	select {
-	case <-closingConnectionsIsComplete:
+	case <-connectionsHandlerShutdownIsComplete:
 		server.log.Debug("Connections handler successfully shutdown")
 	case <-time.After(8 * time.Second):
 		server.log.Error("Connections handler shutdown time out")
 	}
 
-	server.log.Debug("Shutting down CloudServerAPI")
 	server.api.Stop()
 
-	uptime := server.Uptime()
 	server.state = CloudServerStopped
 
 	server.log.Info("CloudServer stopped.")
 	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.Stats().TotalIncomingMessages())
-	server.log.Infof("  Uptime: %d seconds", uptime)
+	server.log.Infof("  Uptime: %d seconds", server.Uptime())
 }
 
 /*
@@ -127,7 +138,7 @@ func (server *CloudServer) Uptime() int64 {
 }
 
 /*
-OpenConnections How many connections are currently open against this server
+OpenConnections How many connections are currently open on this server
 */
 func (server *CloudServer) OpenConnections() uint {
 	return server.connectionsHandler.Stats().OpenConnections()

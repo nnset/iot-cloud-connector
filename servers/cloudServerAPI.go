@@ -39,7 +39,7 @@ func NewCloudServerAPI(address, port string, log *logrus.Logger, cloudServer *Cl
 Start Starts the API server on the configured port
 */
 func (api *CloudServerAPI) Start() {
-	api.cloudServer.log.Debug("CloudServerAPI seting up routes")
+	api.cloudServer.log.Debugf("Starting CloudServerAPI")
 
 	listenAddr := fmt.Sprintf("%s:%s", api.address, api.port)
 
@@ -73,16 +73,17 @@ func (api *CloudServerAPI) router() *mux.Router {
 //
 
 type statusPayload struct {
-	Connections               uint    `json:"connections"`
-	Uptime                    int64   `json:"uptime"`
-	IncomingMessages          uint    `json:"incoming_messages"`
-	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
-	OutgoingMessages          uint    `json:"outgoing_messages"`
-	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
-	GoRoutines                int     `json:"go_routines"`
-	SystemMemory              uint    `json:"system_memory"`
-	AllocatedMemory           uint    `json:"allocated_memory"`
-	HeapAllocatedMemory       uint    `json:"heap_allocated_memory"`
+	ServerCurrentState        CloudServerState `json:"server_current_state"`
+	Connections               uint             `json:"connections"`
+	Uptime                    int64            `json:"uptime"`
+	IncomingMessages          uint             `json:"incoming_messages"`
+	IncomingMessagesPerSecond float64          `json:"incoming_messages_per_second"`
+	OutgoingMessages          uint             `json:"outgoing_messages"`
+	OutgoingMessagesPerSecond float64          `json:"outgoing_messages_per_second"`
+	GoRoutines                int              `json:"go_routines"`
+	SystemMemory              uint             `json:"system_memory"`
+	AllocatedMemory           uint             `json:"allocated_memory"`
+	HeapAllocatedMemory       uint             `json:"heap_allocated_memory"`
 }
 
 type errorPayload struct {
@@ -114,6 +115,7 @@ func (api *CloudServerAPI) unauthorized(w http.ResponseWriter) {
  * @apiDescription Stats and status of the server
  * @apiGroup Status
  *
+ * @apiSuccess {string=created, started, stopped} server_current_state Server's current state
  * @apiSuccess {Integer} connections How many connections are currently open.
  * @apiSuccess {Integer} uptime Server uptime in seconds.
  * @apiSuccess {Integer} incoming_messages How may messages the server received.
@@ -128,6 +130,7 @@ func (api *CloudServerAPI) unauthorized(w http.ResponseWriter) {
  * @apiSuccessExample {json} Success-Response:
  *     HTTP/1.1 200 OK
  *     {
+ *       "server_current_state": string,
  *       "connections" : int,
  *       "uptime": int,
  *       "incoming_messages": int,
@@ -163,6 +166,7 @@ func (api *CloudServerAPI) status(w http.ResponseWriter, r *http.Request) {
 			SystemMemory:              api.cloudServer.SystemMemory(),
 			AllocatedMemory:           api.cloudServer.AllocatedMemory(),
 			HeapAllocatedMemory:       api.cloudServer.HeapAllocatedMemory(),
+			ServerCurrentState:        api.cloudServer.State(),
 		},
 	)
 }

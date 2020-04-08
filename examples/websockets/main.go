@@ -13,8 +13,8 @@ import (
 
 func main() {
 	log := createLogger()
-	operatingSystemSignal := make(chan os.Signal, 1)
-	shutdownServer := make(chan bool, 1)
+	operatingSystemSignal := make(chan os.Signal)
+	shutdownServer := make(chan bool)
 
 	signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 

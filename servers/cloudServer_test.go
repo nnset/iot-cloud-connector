@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nnset/iot-cloud-connector/storage"
+
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
 
@@ -30,28 +32,23 @@ func createLogger() *logrus.Logger {
 }
 
 type dummyConnectionsHandler struct {
+	connectionsStats storage.DeviceConnectionsStatsStorageInterface
 }
 
 func (d *dummyConnectionsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error {
 	return nil
 }
 
-func (d *dummyConnectionsHandler) IncomingMessages() uint {
-	return 0
-}
-
-func (d *dummyConnectionsHandler) OutgoingMessages() uint {
-	return 0
-}
-
-func (d *dummyConnectionsHandler) OpenConnections() uint {
-	return 0
+func (d *dummyConnectionsHandler) Stats() storage.DeviceConnectionsStatsStorageInterface {
+	return d.connectionsStats
 }
 
 func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testing.T) {
 	log := createLogger()
 	shutdownServer := make(chan bool, 1)
-	connectionsHandler := dummyConnectionsHandler{}
+	connectionsHandler := dummyConnectionsHandler{
+		connectionsStats: storage.NewInMemoryDeviceConnectionsStatsStorage(),
+	}
 
 	s := NewCloudServer("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler)
 
