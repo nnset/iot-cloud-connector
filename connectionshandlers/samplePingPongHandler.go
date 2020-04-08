@@ -1,4 +1,4 @@
-package handlers
+package connectionshandlers
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ type SamplePingPongHandler struct {
 	startTime int64
 	messages  uint
 
-	activeConnections storage.DeviceConnectionsStorageInterface
+	activeConnections storage.DeviceConnectionsStatsStorageInterface
 	dataMutex         *sync.Mutex
 	httpServer        *http.Server
 }
@@ -41,7 +41,7 @@ func NewSamplePingPongHandler(address, port, network string) *SamplePingPongHand
 		port:              port,
 		network:           network,
 		startTime:         time.Now().Unix(),
-		activeConnections: storage.NewInMemoryDeviceConnectionsStorage(),
+		activeConnections: storage.NewInMemoryDeviceConnectionsStatsStorage(),
 		dataMutex:         &sync.Mutex{},
 	}
 }
@@ -117,23 +117,8 @@ func (handler *SamplePingPongHandler) handleConnection(w http.ResponseWriter, r 
 }
 
 /*
-IncomingMessagesProcessed How many messages from all connections have been processed
+Stats TODO
 */
-func (handler *SamplePingPongHandler) IncomingMessages() uint {
-	return handler.messages
-}
-
-/*
-OutgoingMessages How many messages this server has sent to the connected clients
-*/
-func (handler *SamplePingPongHandler) OutgoingMessages() uint {
-	return 0
-}
-
-/*
-OpenConnections How many connections are open, as this is an http server and
-connections are not permanent we will return 0 for this sample handler.
-*/
-func (handler *SamplePingPongHandler) OpenConnections() uint {
-	return 0
+func (handler *SamplePingPongHandler) Stats() storage.DeviceConnectionsStatsStorageInterface {
+	return handler.activeConnections
 }

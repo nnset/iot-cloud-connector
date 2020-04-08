@@ -1,4 +1,4 @@
-package handlers
+package connectionshandlers
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ type SampleSocketsHandler struct {
 	log       *logrus.Logger
 	startTime int64
 
-	activeConnections storage.DeviceConnectionsStorageInterface
+	activeConnections storage.DeviceConnectionsStatsStorageInterface
 	dataMutex         *sync.Mutex
 	connections       map[string]net.Conn
 }
@@ -48,7 +48,7 @@ func NewSampleSocketsHandler(address, port, network string) *SampleSocketsHandle
 		port:              port,
 		network:           network,
 		startTime:         time.Now().Unix(),
-		activeConnections: storage.NewInMemoryDeviceConnectionsStorage(),
+		activeConnections: storage.NewInMemoryDeviceConnectionsStatsStorage(),
 		dataMutex:         &sync.Mutex{},
 		connections:       make(map[string]net.Conn),
 	}
@@ -160,22 +160,8 @@ func (handler *SampleSocketsHandler) handleConnection(connection net.Conn) {
 }
 
 /*
-IncomingMessages How many messages from all connections have been processed
+Stats TODO
 */
-func (handler *SampleSocketsHandler) IncomingMessages() uint {
-	return handler.activeConnections.TotalIncomingMessages()
-}
-
-/*
-OutgoingMessages How many messages have been sent from this server to the connected clients
-*/
-func (handler *SampleSocketsHandler) OutgoingMessages() uint {
-	return handler.activeConnections.TotalOutgoingMessages()
-}
-
-/*
-OpenConnections How open connections are currently registered
-*/
-func (handler *SampleSocketsHandler) OpenConnections() uint {
-	return handler.activeConnections.OpenConnections()
+func (handler *SampleSocketsHandler) Stats() storage.DeviceConnectionsStatsStorageInterface {
+	return handler.activeConnections
 }

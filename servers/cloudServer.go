@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nnset/iot-cloud-connector/handlers"
+	"github.com/nnset/iot-cloud-connector/connectionshandlers"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ type CloudServer struct {
 	startTime                  int64
 	log                        *logrus.Logger
 	connectionsHandlerShutdown *chan bool
-	connectionsHandler         handlers.ConnectionsHandlerInterface
+	connectionsHandler         connectionshandlers.ConnectionsHandlerInterface
 	api                        *CloudServerAPI
 	state                      CloudServerState
 }
@@ -50,7 +50,7 @@ func NewCloudServer(
 	address, port, network string,
 	log *logrus.Logger,
 	connectionsHandlerShutdown *chan bool,
-	connectionsHandler handlers.ConnectionsHandlerInterface) *CloudServer {
+	connectionsHandler connectionshandlers.ConnectionsHandlerInterface) *CloudServer {
 	return &CloudServer{
 		id:                         uuid.New().String(),
 		address:                    address,
@@ -78,7 +78,7 @@ func (server *CloudServer) Start() {
 
 	server.log.Debugf("Starting CloudServer connections handler")
 
-	closingConnectionsIsComplete := make(chan bool, 1)
+	closingConnectionsIsComplete := make(chan bool)
 
 	go server.connectionsHandler.Listen(server.connectionsHandlerShutdown, &closingConnectionsIsComplete, server.log)
 
@@ -86,14 +86,14 @@ func (server *CloudServer) Start() {
 
 	<-*server.connectionsHandlerShutdown
 
-	server.log.Info("CloudServer received shutdown signal, proceding to close open connections")
+	server.log.Info("CloudServer received shutdown signal")
 
 	*server.connectionsHandlerShutdown <- true
 
 	select {
 	case <-closingConnectionsIsComplete:
 		server.log.Debug("Connections handler successfully shutdown")
-	case <-time.After(2 * time.Second):
+	case <-time.After(8 * time.Second):
 		server.log.Error("Connections handler shutdown time out")
 	}
 
@@ -104,7 +104,7 @@ func (server *CloudServer) Start() {
 	server.state = CloudServerStopped
 
 	server.log.Info("CloudServer stopped.")
-	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.IncomingMessages())
+	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.Stats().TotalIncomingMessages())
 	server.log.Infof("  Uptime: %d seconds", uptime)
 }
 
@@ -130,21 +130,21 @@ func (server *CloudServer) Uptime() int64 {
 OpenConnections How many connections are currently open against this server
 */
 func (server *CloudServer) OpenConnections() uint {
-	return server.connectionsHandler.OpenConnections()
+	return server.connectionsHandler.Stats().OpenConnections()
 }
 
 /*
 IncomingMessages How many incoming messages were processed
 */
 func (server *CloudServer) IncomingMessages() uint {
-	return server.connectionsHandler.IncomingMessages()
+	return server.connectionsHandler.Stats().TotalIncomingMessages()
 }
 
 /*
-IncomingMessages How many messages this server sent to the connected clients
+OutgoingMessages How many messages this server sent to the connected clients
 */
 func (server *CloudServer) OutgoingMessages() uint {
-	return server.connectionsHandler.OutgoingMessages()
+	return server.connectionsHandler.Stats().TotalOutgoingMessages()
 }
 
 /*

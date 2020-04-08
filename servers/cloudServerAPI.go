@@ -27,7 +27,6 @@ type CloudServerAPI struct {
 NewCloudServerAPI Creates a new API server
 */
 func NewCloudServerAPI(address, port string, log *logrus.Logger, cloudServer *CloudServer) *CloudServerAPI {
-
 	return &CloudServerAPI{
 		address:     address,
 		port:        port,

@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nnset/iot-cloud-connector/handlers"
+	"github.com/nnset/iot-cloud-connector/connectionshandlers"
 	"github.com/nnset/iot-cloud-connector/servers"
 	"github.com/sirupsen/logrus"
 )
@@ -25,7 +25,7 @@ func main() {
 		shutdownServer <- true
 	}(log)
 
-	connectionsHandler := handlers.NewSampleSocketsHandler(
+	connectionsHandler := connectionshandlers.NewSampleSocketsHandler(
 		"localhost", "8080", "tcp",
 	)
 

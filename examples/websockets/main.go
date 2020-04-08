@@ -25,8 +25,8 @@ func main() {
 		shutdownServer <- true
 	}(log)
 
-	connectionsHandler := connectionshandlers.NewSamplePingPongHandler(
-		"localhost", "8080", "tcp",
+	connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
+		"localhost", "8080", "tcp", "", "",
 	)
 
 	s := servers.NewCloudServer(
@@ -46,7 +46,7 @@ func createLogger() *logrus.Logger {
 	log.SetLevel(logrus.DebugLevel)
 	log.Out = os.Stderr
 
-	file, err := os.OpenFile("../var/log/ping-pong.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 
 	if err == nil {
 		log.Out = file

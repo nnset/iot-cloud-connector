@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
 
-	//is "gotest.tools/assert/cmp"
 	"github.com/google/uuid"
 )
 
@@ -37,7 +36,11 @@ func (d *dummyConnectionsHandler) Listen(shutdownChannel, shutdownIsCompleteChan
 	return nil
 }
 
-func (d *dummyConnectionsHandler) IncomingMessagesProcessed() uint {
+func (d *dummyConnectionsHandler) IncomingMessages() uint {
+	return 0
+}
+
+func (d *dummyConnectionsHandler) OutgoingMessages() uint {
 	return 0
 }
 
