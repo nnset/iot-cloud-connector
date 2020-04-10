@@ -5,7 +5,7 @@
 *.so
 *.dylib
 
-**/*
+examples/**
 !**/*.go
 !**/*.py
 !**/
