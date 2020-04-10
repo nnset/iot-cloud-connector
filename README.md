@@ -1,71 +1,284 @@
 # IoT Cloud Connector
+> Realtime communications with your IoT devices over the Internet.
 
-A cloud server where you code how IoT devices send and receive messages using the network protocol of your choice.
+Monitor and control your IoT devices using a simple and tiny helper tool that lets you 
+code your own business logic using [Go](https://golang.org/).
 
-## What IoT Cloud Connector does
-
-Allows you to keep permanent connections between IoT devices (or any other kind of device) and a cloud server.
-
-## Who is addressed to
-
-This tool is mainly for developers as it does not have any user interface and its functionality
-has to be coded using [Go programming language](https://golang.org/).
-
-## How to use it
-
-There are 3 main concepts :
-- CloudConnector
-- Server
-- DeviceConnections
-- Messages
+![Global diagram](docs/images/global-diagram.jpg)
 
 
-### CloudConnector
+## Quick start
 
-This struct has all the control logic regarding the IoT devices connections, such as:
+### Concepts
 
-- Active connections
-- Memory usage
-- Network usage
-- Incoming messages and outgoing messages stats
-- Server start and shutdown
-- Closing connections
-- Logging
+| Name | Description |
+| ------------- | ------------- |
+| IoT device  | Sensors, actuators, gateways or any IoT device you want to monitor or even control, with Internet access |
+| Cloud connector  | Handles, start and shutdown actions, also monitors memory usage from connections.  |
+| Status API | A simple REST API where you can fetch data from connected devices and theirs current status. |
+| Control API | To do.  |
+| Connections handler  | This is your code, here you define communications protocol and business rules. We have coded some samples such as a Web sockets handler in order to help you with this. |
 
-### Server
+### Initial Configuration
 
-This is where you implement all your logic; defining how connections are established,
-authenticated, how messages are handled and even what kind of network protocol is used.
-All servers MUST implement the *ServerInterface* interface in order to be compatible
-with any *CloudConnector* instance.
+Add this to your [go.mod](https://blog.golang.org/using-go-modules) file:
 
-We provide some ready to use servers, such as a Web sockets server where yo just pass
-a couple of functions to handle authentication, messages and disconnections. 
-Check the example below.
+```
+go 1.13
 
-### DeviceConnections
+require (
+    github.com/nnset/iot-cloud-connector
+    github.com/sirupsen/logrus v1.4.2
+)
 
-All IoT connections handled by a *CloudConnector* instance, must be *DeviceConnection* structs.
-*DeviceConnection* structs have a field that MUST implement *NetworkConnection* interface,
-so *CloudConnector* may close the connection, this interface will allow you to use
-any kind of communication protocol.
+```
 
-### Messages
+### Quick example
 
-These are the payloads that clients (IoT devices) and your server (*ServerInterface* handled by a *CloudConnector*) exchange.
+Now you can start using IoT Cloud Connector, here's an example of main function, using one 
+of our sample connections handlers (SampleWebSocketsHandler)
 
-## Build in servers
+```go
+package main
 
-TODO
+import (
+    "os"
+    "fmt"
+    "syscall"
+    "os/signal"
 
-### Websockets server
+    "github.com/nnset/iot-cloud-connector/connectionshandlers"
+    "github.com/nnset/iot-cloud-connector/servers"
+    "github.com/sirupsen/logrus"
+)
 
-TODO
+func main() {
+    log := createLogger()
+    operatingSystemSignal := make(chan os.Signal)
+    shutdownServer := make(chan bool)
 
-## How to code your own servers
+    signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
-TODO
+    go func(log *logrus.Logger) {
+        sig := <-operatingSystemSignal
+        shutdownServer <- true
+    }(log)
 
-## Usage
+    connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
+        "localhost", "8080", "tcp", "", "",
+    )
 
-TODO
+    s := servers.NewCloudConnector(
+        "localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler, nil
+    )
+
+    s.Start()
+    os.Exit(0)
+}
+
+func createLogger() *logrus.Logger {
+    var log = logrus.New()
+
+    log.SetLevel(logrus.DebugLevel)
+    log.Out = os.Stderr
+
+    file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+    if err == nil {
+        log.Out = file
+    } else {
+        fmt.Println("Using stdErr for log")
+    }
+
+    return log
+}
+
+```
+
+Run *go build* so all your dependencies are downloaded.
+
+```shell
+$ go build
+```
+
+And run your app.
+
+
+## Developing
+
+Lets talk about the basic structs and interfaces.
+
+
+### Structs
+
+#### servers.CloudConnector
+
+> You can see this as the control layer. It starts and stops the service and helps StatusAPIInterface to fetch information.
+
+```go
+type CloudConnector struct {
+    id                 string
+    address            string
+    port               string
+    network            string
+    startTime          int64
+    log                *logrus.Logger
+    serverShutdown     *chan bool
+    connectionsHandler connectionshandlers.ConnectionsHandlerInterface
+    statusAPI          StatusAPIInterface
+    state              CloudConnectorState
+}
+```
+
+CloudConnector offers some basic functionalities for handling IoT devices.
+In order to initiate it, you can use its named constructor and call *Start()*.
+
+```go
+
+    // Init log, shutdown channel and connectionsHandler before.
+
+    connector := servers.NewCloudConnector(
+        "localhost", "9090", "tcp", log, &shutdownServerChannel, connectionsHandler, nil
+    )
+
+    connector.Start()  // Blocks flow until shutdownServerChannel is triggered
+```
+
+Once started your IoT devices may connect using localhost port 9090 and using any protocol you defined 
+in your own connectionsHandlerInterface implementation, for example websockets.
+
+**Features**
+
+Starts all functional layers:
+
+* ConnectionsHandler (Your business logic)
+* StatusAPIInterface (Your own or a default one)
+* ControlAPIInterface (Not available yet)
+
+Handles service shutdown when a message is received from shutdownServerChannel.
+CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is forced.
+
+
+#### connections.DeviceConnectionStats
+
+> Information regarding each IoT device connection. All these fields are then used to report
+how a connection is behaving.
+
+```go
+type DeviceConnectionStats struct {
+    connectionID                 string
+    deviceID                     string
+    deviceType                   string
+    userAgent                    string
+    remoteAddress                string
+    createdAt                    int64
+    lastReceivedMessageTimeStamp int64
+    lastSentMessageTimeStamp     int64
+    receivedMessages             uint
+    sentMessages                 uint
+}
+```
+
+#### connections.DeviceConnection
+
+```go
+type DeviceConnection struct {
+    id            string
+    deviceID      string
+    deviceType    string
+    userAgent     string
+    remoteAddress string
+    createdAt     int64
+    connection    NetworkConnection
+}
+
+type NetworkConnection interface {
+    Close(statusCode ConnectionStatusCode, reason string) error
+}
+
+```
+
+### Interfaces
+
+#### connectionshandlers.ConnectionsHandlerInterface
+
+> Implementing your own ConnectionsHandlerInterface allows you to code any 
+kind of business rules yo need to manage your IoT devices.
+
+Only 2 methods are required by this interface:
+
+```go
+type ConnectionsHandlerInterface interface {
+	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error
+
+	Stats() storage.DeviceConnectionsStatsStorageInterface
+}
+```
+
+On Listen method these two channels are important:
+
+| Name | Description |
+| ------------- | ------------- |
+| shutdownChannel  | ConnectionsHandler only reads from it. When a message is received means that service must shutdown so you should perform a graceful shutdown of all the connections and if you need, report the in progress shutdown to other services in your infrastructure. |
+| shutdownIsCompleteChannel  | ConnectionsHandler on writes on it. A message must be added only when ConnectionsHandler has completed its shutdown procedure. |
+
+
+#### storage.DeviceConnectionsStatsStorageInterface
+
+> You code how individual IoT devices connections stats are stored and also offering some global stats.
+
+Check a ready to use thread safe in memory implementation at [storage.InMemoryDeviceConnectionsStatsStorage](storage/inMemoryDeviceConnectionsStatsStorage.go)
+
+
+#### servers.StatusAPIInterface
+
+
+### Connections Handlers samples
+
+
+### How to write your own business logic
+
+
+
+
+
+
+## Features
+
+What's all the bells and whistles this project can perform?
+* What's the main functionality
+* You can also do another thing
+* If you get really randy, you can even do this
+
+
+## Links
+
+Even though this information can be found inside the project on machine-readable
+format like in a .json file, it's good to include a summary of most useful
+links to humans using your project. You can include links like:
+
+- Project homepage: https://your.github.com/awesome-project/
+- Repository: https://github.com/your/awesome-project/
+- Issue tracker: https://github.com/your/awesome-project/issues
+  - In case of sensitive bugs like security vulnerabilities, please contact
+    my@email.com directly instead of using issue tracker. We value your effort
+    to improve the security and privacy of this project!
+- Related projects:
+  - Your other project: https://github.com/your/other-project/
+  - Someone else's project: https://github.com/someones/awesome-project/
+
+
+## Licensing
+
+Under MIT License, check [License file](./LICENSE)
+
+
+
+
+
+
+
+
+
+
+
