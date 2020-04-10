@@ -29,8 +29,8 @@ func main() {
 		"localhost", "8080", "tcp",
 	)
 
-	s := servers.NewCloudServer(
-		"localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler,
+	s := servers.NewCloudConnector(
+		"localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler, nil,
 	)
 
 	s.Start()

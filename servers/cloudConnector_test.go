@@ -50,7 +50,7 @@ func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testin
 		connectionsStats: storage.NewInMemoryDeviceConnectionsStatsStorage(),
 	}
 
-	s := NewCloudServer("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
 
 	assert.Assert(t, s != nil)
 
@@ -64,9 +64,9 @@ func TestCreatingACloudServerShouldSetItsStateToCreated(t *testing.T) {
 	shutdownServer := make(chan bool, 1)
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudServer("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
 
-	assert.Assert(t, s.State() == CloudServerCreated)
+	assert.Assert(t, s.State() == CloudConnectorCreated)
 	shutdownServer <- true
 }
 
@@ -75,13 +75,13 @@ func TestStartingACloudServerShouldSetItsStateToStarted(t *testing.T) {
 	shutdownServer := make(chan bool, 1)
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudServer("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
 
-	assert.Assert(t, s.State() == CloudServerCreated)
+	assert.Assert(t, s.State() == CloudConnectorCreated)
 
 	go s.Start()
 	time.Sleep(20 * time.Millisecond)
 
-	assert.Assert(t, s.State() == CloudServerStarted)
+	assert.Assert(t, s.State() == CloudConnectorStarted)
 	shutdownServer <- true
 }
