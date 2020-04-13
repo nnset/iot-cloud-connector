@@ -19,6 +19,89 @@ code your own business logic using [Go](https://golang.org/).
 | Control API | To do.  |
 | Connections handler  | This is your code, here you define communications protocol and business rules. We have coded some samples such as a Web sockets handler in order to help you with this. |
 
+
+### Quick example
+
+Now you can start using IoT Cloud Connector, here's an example of main function, using one 
+of our sample connections handlers (SampleWebSocketsHandler)
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/nnset/iot-cloud-connector/connectionshandlers"
+	"github.com/nnset/iot-cloud-connector/servers"
+	"github.com/sirupsen/logrus"
+)
+
+func main() {
+	log := createLogger()
+
+    // IoT devices will connect to localhost:8080
+	connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
+		"localhost", "8080", "tcp", "", "",
+	)
+
+    // A default Status REST API will be available at localhost:9090
+	s := servers.NewCloudConnector(
+		"localhost", "9090", "tcp", log, connectionsHandler, nil,
+	)
+
+	s.Start()  // Blocks flow until server is shutdown via an os.signal
+
+	os.Exit(0)
+}
+
+func createLogger() *logrus.Logger {
+	var log = logrus.New()
+
+	log.SetLevel(logrus.DebugLevel)
+	log.Out = os.Stderr
+
+	file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	if err == nil {
+		log.Out = file
+	} else {
+		fmt.Println("Using stdErr for log")
+	}
+
+	return log
+}
+
+```
+
+Run *go build* so all your dependencies are downloaded.
+
+```shell
+$ go build
+$ ./websockets
+
+    Using stdErr for log
+    DEBU[0000] Starting CloudConnector #d24def51-0220-4a71-8da7-8eb3d4e93bb3 at localhost:9090 
+    DEBU[0000] Starting StatusAPI                           
+    DEBU[0000] StatusAPI available at localhost:9090        
+    DEBU[0000] Serving websockets via ws (TLS OFF) at localhost:8080 
+    DEBU[0000]   Connect endpoint ws://localhost:8080/connect 
+
+```
+
+Now you can use the [sample websocket client](examples/websockets/websockets_client.py) written in Python.
+
+```shell
+$ python3 websockets_client.py localhost 8080 3
+
+    Creating thread: websocket_0
+    Creating thread: websocket_1
+    Creating thread: websocket_2
+
+```
+
+## Developing
+
 ### Initial Configuration
 
 Add this to your [go.mod](https://blog.golang.org/using-go-modules) file:
@@ -33,83 +116,9 @@ require (
 
 ```
 
-### Quick example
-
-Now you can start using IoT Cloud Connector, here's an example of main function, using one 
-of our sample connections handlers (SampleWebSocketsHandler)
-
-```go
-package main
-
-import (
-    "os"
-    "fmt"
-    "syscall"
-    "os/signal"
-
-    "github.com/nnset/iot-cloud-connector/connectionshandlers"
-    "github.com/nnset/iot-cloud-connector/servers"
-    "github.com/sirupsen/logrus"
-)
-
-func main() {
-    log := createLogger()
-    operatingSystemSignal := make(chan os.Signal)
-    shutdownServer := make(chan bool)
-
-    signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-
-    go func(log *logrus.Logger) {
-        sig := <-operatingSystemSignal
-        shutdownServer <- true
-    }(log)
-
-    connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
-        "localhost", "8080", "tcp", "", "",
-    )
-
-    s := servers.NewCloudConnector(
-        "localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler, nil
-    )
-
-    s.Start()
-    os.Exit(0)
-}
-
-func createLogger() *logrus.Logger {
-    var log = logrus.New()
-
-    log.SetLevel(logrus.DebugLevel)
-    log.Out = os.Stderr
-
-    file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-
-    if err == nil {
-        log.Out = file
-    } else {
-        fmt.Println("Using stdErr for log")
-    }
-
-    return log
-}
-
-```
-
-Run *go build* so all your dependencies are downloaded.
-
-```shell
-$ go build
-```
-
-And run your app.
-
-
-## Developing
-
-Lets talk about the basic structs and interfaces.
-
-
 ### Structs
+
+Lets talk about the basic structs.
 
 #### servers.CloudConnector
 
@@ -117,35 +126,18 @@ Lets talk about the basic structs and interfaces.
 
 ```go
 type CloudConnector struct {
-    id                 string
-    address            string
-    port               string
-    network            string
-    startTime          int64
-    log                *logrus.Logger
-    serverShutdown     *chan bool
-    connectionsHandler connectionshandlers.ConnectionsHandlerInterface
-    statusAPI          StatusAPIInterface
-    state              CloudConnectorState
+	id                 string
+	address            string
+	port               string
+	network            string
+	startTime          int64
+	log                *logrus.Logger
+	serverShutdown     chan bool
+	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
+	statusAPI          StatusAPIInterface
+	state              CloudConnectorState
 }
 ```
-
-CloudConnector offers some basic functionalities for handling IoT devices.
-In order to initiate it, you can use its named constructor and call *Start()*.
-
-```go
-
-    // Init log, shutdown channel and connectionsHandler before.
-
-    connector := servers.NewCloudConnector(
-        "localhost", "9090", "tcp", log, &shutdownServerChannel, connectionsHandler, nil
-    )
-
-    connector.Start()  // Blocks flow until shutdownServerChannel is triggered
-```
-
-Once started your IoT devices may connect using localhost port 9090 and using any protocol you defined 
-in your own connectionsHandlerInterface implementation, for example websockets.
 
 **Features**
 
@@ -155,9 +147,26 @@ Starts all functional layers:
 * StatusAPIInterface (Your own or a default one)
 * ControlAPIInterface (Not available yet)
 
-Handles service shutdown when a message is received from shutdownServerChannel.
-CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is forced.
+Handles service shutdown when a os.signal is send to stop the process.
+CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is enforced.
 
+**How to instantiate it**
+
+In order to instantiate it, you can use its named constructor and call *Start()*.
+
+```go
+
+    // Init log and connectionsHandler before.
+
+    connector := servers.NewCloudConnector(
+        "localhost", "9090", "tcp", log, connectionsHandler, nil
+    )
+
+    connector.Start()  // Blocks flow until a kill signal is sent to the process
+```
+
+Once started your IoT devices may connect using localhost port 9090 and using any protocol you defined 
+in your own connectionsHandlerInterface implementation, for example websockets.
 
 #### connections.DeviceConnectionStats
 
@@ -179,31 +188,16 @@ type DeviceConnectionStats struct {
 }
 ```
 
-#### connections.DeviceConnection
-
-```go
-type DeviceConnection struct {
-    id            string
-    deviceID      string
-    deviceType    string
-    userAgent     string
-    remoteAddress string
-    createdAt     int64
-    connection    NetworkConnection
-}
-
-type NetworkConnection interface {
-    Close(statusCode ConnectionStatusCode, reason string) error
-}
-
-```
-
 ### Interfaces
+
+Use all these interfaces to fully customize your logic. We also offer some ready to use 
+implementations.
+
 
 #### connectionshandlers.ConnectionsHandlerInterface
 
 > Implementing your own ConnectionsHandlerInterface allows you to code any 
-kind of business rules yo need to manage your IoT devices.
+kind of business rules you need to manage your IoT devices.
 
 Only 2 methods are required by this interface:
 
@@ -225,60 +219,143 @@ On Listen method these two channels are important:
 
 #### storage.DeviceConnectionsStatsStorageInterface
 
-> You code how individual IoT devices connections stats are stored and also offering some global stats.
+> How individual IoT devices connections stats are stored offering some global stats as well.
 
 Check a ready to use thread safe in memory implementation at [storage.InMemoryDeviceConnectionsStatsStorage](storage/inMemoryDeviceConnectionsStatsStorage.go)
 
 
 #### servers.StatusAPIInterface
 
+> Each Cloud Connector instance has a build in REST API where users may fetch information regarding
+connector status and current connections.
+
+However you may want to offer your own API, thats fine just implement this interface and pass the instance
+to Clod Connector.
+
 
 ### Connections Handlers samples
 
+**pingpong**
+
+> A simple example which client and connector exchange ping - pong messages
+
+Start Cloud Connector :
+
+```shell
+    ~/iot-cloud-connector/examples/pingpong $ go build
+    ~/iot-cloud-connector/examples/pingpong $ ./pingpong
+    
+    Using stdErr for log
+    DEBU[0000] Starting CloudConnector #e0beffb7-aed3-4789-8d69-3e013e9a38be at localhost:9090 
+    DEBU[0000] Starting StatusAPI                           
+    DEBU[0000] StatusAPI available at localhost:9090        
+    DEBU[0000] SamplePingPongHandler listening to localhost:8080 
+    DEBU[0000] SamplePingPongHandler is serving requests
+    DEBU[0086] New connection from 127.0.0.1:38214          
+    DEBU[0086] New message PING 
+
+```
+
+Start client:
+
+```shell
+    ~/iot-cloud-connector/examples/pingpong $ python3 ping_pong_client.py localhost 8080
+    Connecting to localhost:8080 as Python ping pong client
+    Response: PONG
+    Response: PONG
+
+```
+
+**sockets**
+
+> A simple example using plain sockets to exchange messages between clients and connector
+
+Start Cloud Connector :
+
+```shell
+    ~/iot-cloud-connector/examples/sockets $ go build
+    ~/iot-cloud-connector/examples/sockets $ ./sockets
+    
+    Using stdErr for log
+    DEBU[0000] Starting CloudConnector #00960546-bb75-43b8-b994-9c5076b357ee at localhost:9090 
+    DEBU[0000] Starting StatusAPI                           
+    DEBU[0000] StatusAPI available at localhost:9090        
+    DEBU[0000] SampleSocketsHandler listening to localhost:8080 
+
+```
+
+Start client:
+
+```shell
+    ~/iot-cloud-connector/examples/pingpong $ python3 sockets_client.py localhost 8080 3 10
+    Creating thread: socket_0
+        Client created
+    Opening socket #socket_0 to server localhost:8080
+    Created thread: socket_0
+    Creating thread: socket_1
+        Client created
+        socket_0 sending open-door
+    Opening socket #socket_1 to server localhost:8080
+    Created thread: socket_1
+    Creating thread: socket_2
+    Opening socket #socket_2 to server localhost:8080
+    Created thread: socket_2
+
+```
+
+**websockets**
+
+> Bidirectional communication using websockets
+
+Start Cloud Connector :
+
+```shell
+    ~/iot-cloud-connector/examples/websockets $ go build
+    ~/iot-cloud-connector/examples/websockets $ ./websockets
+
+    Using stdErr for log
+    DEBU[0000] Starting CloudConnector #8ca76154-5821-46fd-92b0-d710ffd82cf4 at localhost:9090 
+    DEBU[0000] Starting StatusAPI                           
+    DEBU[0000] StatusAPI available at localhost:9090        
+    DEBU[0000] Serving websockets via ws (TLS OFF) at localhost:8080 
+    DEBU[0000]   Connect endpoint ws://localhost:8080/connect 
+    DEBU[0046] Websocket from 127.0.0.1:38364 accepted      
+    DEBU[0046] Websocket from 127.0.0.1:38360 accepted      
+    DEBU[0046] Websocket from 127.0.0.1:38362 accepted      
+    DEBU[0046] recv: Type: 1, Hello 3                       
+    DEBU[0046] recv: Type: 1, Hello 3                       
+    DEBU[0046] recv: Type: 1, Hello 3                       
+    DEBU[0047] recv: Type: 1, Hello 3                       
+    DEBU[0048] Sending message to connection #7d656bec-266d-4e6e-97d8-e9bfadd921d7 (127.0.0.1:38364) 
+```
+
+Start client:
+
+```shell
+    ~/iot-cloud-connector/examples/pingpong $ python3 websockets_client.py localhost 8080 3
+    Creating thread: websocket_0
+    Creating thread: websocket_1
+    Creating thread: websocket_2
+    Message received Hello from server
+    Message received Hello from server
+    Message received Hello from server
+
+```
 
 ### How to write your own business logic
 
-
-
-
-
-
-## Features
-
-What's all the bells and whistles this project can perform?
-* What's the main functionality
-* You can also do another thing
-* If you get really randy, you can even do this
+TODO
 
 
 ## Links
 
-Even though this information can be found inside the project on machine-readable
-format like in a .json file, it's good to include a summary of most useful
-links to humans using your project. You can include links like:
+Cloud connector uses these amazing projects:
 
-- Project homepage: https://your.github.com/awesome-project/
-- Repository: https://github.com/your/awesome-project/
-- Issue tracker: https://github.com/your/awesome-project/issues
-  - In case of sensitive bugs like security vulnerabilities, please contact
-    my@email.com directly instead of using issue tracker. We value your effort
-    to improve the security and privacy of this project!
-- Related projects:
-  - Your other project: https://github.com/your/other-project/
-  - Someone else's project: https://github.com/someones/awesome-project/
+- Gorilla Toolkit: https://www.gorillatoolkit.org/
+- Logrus: https://github.com/sirupsen/logrus
+- gotest.tools: https://github.com/gotestyourself/gotest.tools
 
 
 ## Licensing
 
 Under MIT License, check [License file](./LICENSE)
-
-
-
-
-
-
-
-
-
-
-
