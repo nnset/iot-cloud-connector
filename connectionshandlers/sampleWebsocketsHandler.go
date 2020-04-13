@@ -113,11 +113,11 @@ func (handler *SampleWebSocketsHandler) closeAllConnections() error {
 
 	handler.log.Debugf("SampleWebsocketsHandler closing open connections")
 
-	for connectionID, wsConnection := range handler.connections {
-		handler.log.Debugf("  Closing connection #%s (%s)", connectionID, wsConnection.RemoteAddr().String())
+	for deviceID, wsConnection := range handler.connections {
+		handler.log.Debugf("  Closing connection to device #%s (%s)", deviceID, wsConnection.RemoteAddr().String())
 
 		wsConnection.Close()
-		delete(handler.connections, connectionID)
+		delete(handler.connections, deviceID)
 	}
 
 	handler.log.Debugf("  All connections closed")
@@ -131,14 +131,14 @@ func (handler *SampleWebSocketsHandler) outgoingMessagesDeliver(ticker *time.Tic
 		case <-ticker.C:
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-			for connectionID, wsConnection := range handler.connections {
+			for deviceID, wsConnection := range handler.connections {
 				if r.Intn(20) < 5 {
-					handler.log.Debugf("Sending message to connection #%s (%s)", connectionID, wsConnection.RemoteAddr().String())
+					handler.log.Debugf("Sending message to device #%s (%s)", deviceID, wsConnection.RemoteAddr().String())
 
 					err := wsConnection.WriteMessage(1, []byte("Hello from server"))
 
 					if err == nil {
-						handler.connectionsStats.OutgoingMessageSent(connectionID)
+						handler.connectionsStats.OutgoingMessageSent(deviceID)
 					}
 				}
 			}
@@ -163,13 +163,13 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 	userAgent := r.Header.Get("User-Agent")
 	connectionID := uuid.New().String()
 
-	handler.saveConnection(connectionID, wsConn)
-	defer handler.deleteConnection(connectionID)
+	handler.saveConnection(deviceID, wsConn)
+	defer handler.deleteConnection(deviceID)
 
 	handler.connectionsStats.Add(connectionID, deviceID, deviceType, userAgent, r.RemoteAddr)
-	defer handler.connectionsStats.Delete(connectionID)
+	defer handler.connectionsStats.Delete(deviceID)
 
-	handler.handleIncommingMessages(connectionID, wsConn)
+	handler.handleIncomingMessages(deviceID, wsConn)
 }
 
 func (handler *SampleWebSocketsHandler) upgradeConnectionToWebSocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
@@ -187,29 +187,29 @@ func (handler *SampleWebSocketsHandler) upgradeConnectionToWebSocket(w http.Resp
 	return wsConn, nil
 }
 
-func (handler *SampleWebSocketsHandler) saveConnection(connectionID string, ws *websocket.Conn) error {
+func (handler *SampleWebSocketsHandler) saveConnection(deviceID string, ws *websocket.Conn) error {
 	handler.dataMutex.Lock()
 	defer handler.dataMutex.Unlock()
 
-	_, alreadyConnected := handler.connections[connectionID]
+	_, alreadyConnected := handler.connections[deviceID]
 
 	if alreadyConnected {
-		return errors.New("Connection already established")
+		return errors.New("Device already connected")
 	}
 
-	handler.connections[connectionID] = ws
+	handler.connections[deviceID] = ws
 
 	return nil
 }
 
-func (handler *SampleWebSocketsHandler) deleteConnection(connectionID string) {
+func (handler *SampleWebSocketsHandler) deleteConnection(deviceID string) {
 	handler.dataMutex.Lock()
 	defer handler.dataMutex.Unlock()
 
-	delete(handler.connections, connectionID)
+	delete(handler.connections, deviceID)
 }
 
-func (handler *SampleWebSocketsHandler) handleIncommingMessages(connectionID string, wsConn *websocket.Conn) {
+func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, wsConn *websocket.Conn) {
 	for {
 		messageType, message, err := wsConn.ReadMessage()
 
@@ -223,7 +223,7 @@ func (handler *SampleWebSocketsHandler) handleIncommingMessages(connectionID str
 
 		handler.log.Debugf("recv: Type: %d, %s", messageType, message)
 
-		handler.connectionsStats.IncomingMessageReceived(connectionID)
+		handler.connectionsStats.IncomingMessageReceived(deviceID)
 	}
 }
 

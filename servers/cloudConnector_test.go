@@ -45,37 +45,33 @@ func (d *dummyConnectionsHandler) Stats() storage.DeviceConnectionsStatsStorageI
 
 func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testing.T) {
 	log := createLogger()
-	shutdownServer := make(chan bool, 1)
+
 	connectionsHandler := dummyConnectionsHandler{
 		connectionsStats: storage.NewInMemoryDeviceConnectionsStatsStorage(),
 	}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
 
 	assert.Assert(t, s != nil)
 
 	_, err := uuid.Parse(s.ID())
 	assert.Assert(t, err == nil, err)
-	shutdownServer <- true
 }
 
 func TestCreatingACloudServerShouldSetItsStateToCreated(t *testing.T) {
 	log := createLogger()
-	shutdownServer := make(chan bool, 1)
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
-	shutdownServer <- true
 }
 
 func TestStartingACloudServerShouldSetItsStateToStarted(t *testing.T) {
 	log := createLogger()
-	shutdownServer := make(chan bool, 1)
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &shutdownServer, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 
@@ -83,5 +79,30 @@ func TestStartingACloudServerShouldSetItsStateToStarted(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	assert.Assert(t, s.State() == CloudConnectorStarted)
-	shutdownServer <- true
+}
+
+func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
+	log := createLogger()
+
+	inMemoryConnectionsStats := storage.NewInMemoryDeviceConnectionsStatsStorage()
+	inMemoryConnectionsStats.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnectionsStats.IncomingMessageReceived("device_abc")
+	inMemoryConnectionsStats.IncomingMessageReceived("device_xyz")
+
+	connectionsHandler := dummyConnectionsHandler{
+		connectionsStats: inMemoryConnectionsStats,
+	}
+
+	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
+
+	assert.Assert(t, s.State() == CloudConnectorCreated)
+
+	go s.Start()
+	time.Sleep(20 * time.Millisecond)
+
+	assert.Assert(t, s.State() == CloudConnectorStarted)
+	assert.Assert(t, s.IncomingMessages("device_abc") == 1)
+	assert.Assert(t, s.IncomingMessages("device_xyz") == 1)
+	assert.Assert(t, s.IncomingMessages("") == 2)
 }

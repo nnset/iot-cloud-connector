@@ -65,7 +65,8 @@ func (api *DefaultStatusAPI) Start() error {
 func (api *DefaultStatusAPI) router() *mux.Router {
 	// TODO does mux have a middleware in order to perform auth ?
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/status", api.status)
+	router.HandleFunc("/cloud-connector/status", api.status)
+	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus)
 
 	return router
 }
@@ -86,6 +87,14 @@ type statusPayload struct {
 	SystemMemory              uint                `json:"system_memory"`
 	AllocatedMemory           uint                `json:"allocated_memory"`
 	HeapAllocatedMemory       uint                `json:"heap_allocated_memory"`
+}
+
+type deviceStatusPayload struct {
+	Uptime                    int64   `json:"uptime"`
+	IncomingMessages          uint    `json:"incoming_messages"`
+	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
+	OutgoingMessages          uint    `json:"outgoing_messages"`
+	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
 }
 
 type errorPayload struct {
@@ -112,9 +121,9 @@ func (api *DefaultStatusAPI) unauthorized(w http.ResponseWriter) {
 }
 
 /**
- * @api {get} /status Cloud server status
+ * @api {get} /cloud-connector/status Cloud Connector status
  * @apiName ServerStatus
- * @apiDescription Stats and status of the server
+ * @apiDescription Stats and status from this Cloud Connector instance
  * @apiGroup Status
  *
  * @apiSuccess {string=created, started, stopped} server_current_state Server's current state
@@ -152,14 +161,14 @@ func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
 
 	api.restAPIHeaders(w)
 
-	incomingMessages := api.cloudConnector.IncomingMessages()
-	outgoingMessages := api.cloudConnector.OutgoingMessages()
-	uptimeSeconds := api.cloudConnector.Uptime() + 1
+	incomingMessages := api.cloudConnector.IncomingMessages("")
+	outgoingMessages := api.cloudConnector.OutgoingMessages("")
+	uptimeSeconds := api.cloudConnector.Uptime("") + 1
 
 	json.NewEncoder(w).Encode(
 		statusPayload{
 			Connections:               api.cloudConnector.OpenConnections(),
-			Uptime:                    api.cloudConnector.Uptime(),
+			Uptime:                    api.cloudConnector.Uptime(""),
 			IncomingMessages:          incomingMessages,
 			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
 			OutgoingMessages:          outgoingMessages,
@@ -173,12 +182,76 @@ func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+/**
+ * @api {get} /devices/status/:deviceID Cloud Connector status
+ * @apiName DeviceStatus
+ * @apiDescription Stats and status from a Device connection to the server
+ * @apiGroup Devices
+ *
+ * @apiParam {String} deviceID Device's unique identifier
+ *
+ * @apiSuccess {Integer} uptime Device connection uptime in seconds.
+ * @apiSuccess {Integer} incoming_messages How may messages the device sent to the server.
+ * @apiSuccess {Integer} incoming_messages_per_second How many messages the device is sending to the server per second.
+ * @apiSuccess {Integer} outgoing_messages How may messages the device received from the server.
+ * @apiSuccess {Integer} outgoing_messages_per_second How may messages the device is receiving from the server per second.
+ *
+ * @apiSuccessExample {json} Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *       "uptime": int,
+ *       "incoming_messages": int,
+ *       "incoming_messages_per_second": int,
+ *       "outgoing_messages": int,
+ *       "outgoing_messages_per_second": int
+ *     }
+ *
+ * @apiError DeviceNotFound The <code>deviceID</code> of the Device was not found.
+ *
+ * @apiErrorExample {json} Error-Response:
+ *     HTTP/1.1 404 Not Found
+ *     {
+ *       "error": "Device not found"
+ *     }
+ *
+ */
+func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
+	if api.authRequest(r) != nil {
+		api.unauthorized(w)
+		return
+	}
+
+	vars := mux.Vars(r)
+	incomingMessages := api.cloudConnector.IncomingMessages(vars["deviceID"])
+	outgoingMessages := api.cloudConnector.OutgoingMessages(vars["deviceID"])
+	uptimeSeconds := api.cloudConnector.Uptime(vars["deviceID"])
+
+	if uptimeSeconds == 0 {
+		// TODO return JSON
+		http.Error(w, "Device not found", http.StatusNotFound)
+
+		return
+	}
+
+	api.restAPIHeaders(w)
+
+	json.NewEncoder(w).Encode(
+		deviceStatusPayload{
+			Uptime:                    uptimeSeconds,
+			IncomingMessages:          incomingMessages,
+			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+			OutgoingMessages:          outgoingMessages,
+			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+		},
+	)
+}
+
 /*
 Stop Stops the API server
 @see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
 */
 func (api *DefaultStatusAPI) Stop() {
-	api.log.Debug("Shutting down StatusAPI")
+	api.log.Debug("Shutting down defaultStatusAPI")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -186,8 +259,8 @@ func (api *DefaultStatusAPI) Stop() {
 	api.httpServer.SetKeepAlivesEnabled(false)
 
 	if err := api.httpServer.Shutdown(ctx); err != nil {
-		api.log.Fatalf("Could not gracefully shutdown the server: %v\n", err)
+		api.log.Fatalf("Could not gracefully shutdown defaultStatusAPI http server %v\n", err)
 	} else {
-		api.log.Debug("StatusAPI is shutdown")
+		api.log.Debug("defaultStatusAPI is shutdown")
 	}
 }

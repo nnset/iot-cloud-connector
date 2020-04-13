@@ -23,9 +23,11 @@ class WebSocketClient:
         self.__web_socket = websocket.WebSocketApp(
             'ws://{0}:{1}/connect'.format(self.__server_host, self.__server_port),
             on_message=self.on_message,
-            on_error=self.on_error
+            on_error=self.on_error,
+            header=["device_id: {0}".format(self.__web_socket_id)]
         )
 
+        print("  Connecting with device_id = {}".format(self.__web_socket_id))
         self.__web_socket.on_open = self.on_open
         self.__web_socket.run_forever()
 

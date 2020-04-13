@@ -136,7 +136,7 @@ func (server *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHa
 	server.log.Info("CloudConnector stopped.")
 	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.Stats().TotalIncomingMessages())
 	server.log.Info("  Total outgoing messages processed: ", server.connectionsHandler.Stats().TotalOutgoingMessages())
-	server.log.Infof("  Uptime: %d seconds", server.Uptime())
+	server.log.Infof("  Uptime: %d seconds", server.Uptime(""))
 }
 
 /*
@@ -149,12 +149,31 @@ func (server *CloudConnector) ID() string {
 /*
 Uptime how many seconds the server has been up
 */
-func (server *CloudConnector) Uptime() int64 {
-	if server.startTime == 0 {
+func (server *CloudConnector) Uptime(deviceID string) int64 {
+
+	if deviceID == "" {
+		if server.startTime == 0 {
+			return 0
+		}
+
+		return time.Now().Unix() - server.startTime
+	}
+
+	connection, err := server.connectionsHandler.Stats().Get(deviceID)
+
+	if err != nil {
+		// TODO should we return error or just 0 ?
 		return 0
 	}
 
-	return time.Now().Unix() - server.startTime
+	uptime, err := connection.Uptime()
+
+	if err != nil {
+		// TODO should we return error or just 0 ?
+		return 0
+	}
+
+	return uptime
 }
 
 /*
@@ -165,17 +184,25 @@ func (server *CloudConnector) OpenConnections() uint {
 }
 
 /*
-IncomingMessages How many incoming messages were processed
+IncomingMessages How many incoming messages were processed by a Device or globally if deviceID is empty
 */
-func (server *CloudConnector) IncomingMessages() uint {
-	return server.connectionsHandler.Stats().TotalIncomingMessages()
+func (server *CloudConnector) IncomingMessages(deviceID string) uint {
+	if deviceID == "" {
+		return server.connectionsHandler.Stats().TotalIncomingMessages()
+	}
+
+	return server.connectionsHandler.Stats().IncomingMessages(deviceID)
 }
 
 /*
-OutgoingMessages How many messages this server sent to the connected clients
+OutgoingMessages How many messages this server sent to a Device or globally if deviceID is empty
 */
-func (server *CloudConnector) OutgoingMessages() uint {
-	return server.connectionsHandler.Stats().TotalOutgoingMessages()
+func (server *CloudConnector) OutgoingMessages(deviceID string) uint {
+	if deviceID == "" {
+		return server.connectionsHandler.Stats().TotalOutgoingMessages()
+	}
+
+	return server.connectionsHandler.Stats().OutgoingMessages(deviceID)
 }
 
 /*
