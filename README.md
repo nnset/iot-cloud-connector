@@ -1,3 +1,5 @@
+# Project still under development do not use in production
+
 # IoT Cloud Connector
 > Realtime communications with your IoT devices over the Internet.
 
@@ -19,6 +21,7 @@ code your own business logic using [Go](https://golang.org/).
 | Control API | To do.  |
 | Connections handler  | This is your code, here you define communications protocol and business rules. We have coded some samples such as a Web sockets handler in order to help you with this. |
 
+If you have a strong Go or software development background, you may skip the rest and go to [how to write your own logic](#how-to-write-your-own-business-logic).
 
 ### Quick example
 
@@ -243,16 +246,8 @@ Start Cloud Connector :
 
 ```shell
     ~/iot-cloud-connector/examples/pingpong $ go build
-    ~/iot-cloud-connector/examples/pingpong $ ./pingpong
     
-    Using stdErr for log
-    DEBU[0000] Starting CloudConnector #e0beffb7-aed3-4789-8d69-3e013e9a38be at localhost:9090 
-    DEBU[0000] Starting StatusAPI                           
-    DEBU[0000] StatusAPI available at localhost:9090        
-    DEBU[0000] SamplePingPongHandler listening to localhost:8080 
-    DEBU[0000] SamplePingPongHandler is serving requests
-    DEBU[0086] New connection from 127.0.0.1:38214          
-    DEBU[0086] New message PING 
+    ~/iot-cloud-connector/examples/pingpong $ ./pingpong
 
 ```
 
@@ -260,10 +255,6 @@ Start client:
 
 ```shell
     ~/iot-cloud-connector/examples/pingpong $ python3 ping_pong_client.py localhost 8080
-    Connecting to localhost:8080 as Python ping pong client
-    Response: PONG
-    Response: PONG
-
 ```
 
 **sockets**
@@ -274,13 +265,8 @@ Start Cloud Connector :
 
 ```shell
     ~/iot-cloud-connector/examples/sockets $ go build
-    ~/iot-cloud-connector/examples/sockets $ ./sockets
     
-    Using stdErr for log
-    DEBU[0000] Starting CloudConnector #00960546-bb75-43b8-b994-9c5076b357ee at localhost:9090 
-    DEBU[0000] Starting StatusAPI                           
-    DEBU[0000] StatusAPI available at localhost:9090        
-    DEBU[0000] SampleSocketsHandler listening to localhost:8080 
+    ~/iot-cloud-connector/examples/sockets $ ./sockets
 
 ```
 
@@ -288,19 +274,6 @@ Start client:
 
 ```shell
     ~/iot-cloud-connector/examples/pingpong $ python3 sockets_client.py localhost 8080 3 10
-    Creating thread: socket_0
-        Client created
-    Opening socket #socket_0 to server localhost:8080
-    Created thread: socket_0
-    Creating thread: socket_1
-        Client created
-        socket_0 sending open-door
-    Opening socket #socket_1 to server localhost:8080
-    Created thread: socket_1
-    Creating thread: socket_2
-    Opening socket #socket_2 to server localhost:8080
-    Created thread: socket_2
-
 ```
 
 **websockets**
@@ -311,43 +284,44 @@ Start Cloud Connector :
 
 ```shell
     ~/iot-cloud-connector/examples/websockets $ go build
+    
     ~/iot-cloud-connector/examples/websockets $ ./websockets
-
-    Using stdErr for log
-    DEBU[0000] Starting CloudConnector #8ca76154-5821-46fd-92b0-d710ffd82cf4 at localhost:9090 
-    DEBU[0000] Starting StatusAPI                           
-    DEBU[0000] StatusAPI available at localhost:9090        
-    DEBU[0000] Serving websockets via ws (TLS OFF) at localhost:8080 
-    DEBU[0000]   Connect endpoint ws://localhost:8080/connect 
-    DEBU[0046] Websocket from 127.0.0.1:38364 accepted      
-    DEBU[0046] Websocket from 127.0.0.1:38360 accepted      
-    DEBU[0046] Websocket from 127.0.0.1:38362 accepted      
-    DEBU[0046] recv: Type: 1, Hello 3                       
-    DEBU[0046] recv: Type: 1, Hello 3                       
-    DEBU[0046] recv: Type: 1, Hello 3                       
-    DEBU[0047] recv: Type: 1, Hello 3                       
-    DEBU[0048] Sending message to connection #7d656bec-266d-4e6e-97d8-e9bfadd921d7 (127.0.0.1:38364) 
 ```
 
 Start client:
 
 ```shell
     ~/iot-cloud-connector/examples/pingpong $ python3 websockets_client.py localhost 8080 3
-    Creating thread: websocket_0
-    Creating thread: websocket_1
-    Creating thread: websocket_2
-    Message received Hello from server
-    Message received Hello from server
-    Message received Hello from server
+```
+
+# How to write your own business logic
+
+**Required steps**
+
+Add this to your [go.mod](https://blog.golang.org/using-go-modules) file:
+
+```
+go 1.13
+
+require (
+    github.com/nnset/iot-cloud-connector
+    github.com/sirupsen/logrus v1.4.2
+)
 
 ```
 
-### How to write your own business logic
+- An implementation of connectionshandlers.ConnectionsHandlerInterface
+    - Check [websockets sample](connectionshandlers/sampleWebsocketsHandler.go) for an example.
 
-TODO
+**Optional steps**
+
+- An implementation of storage.DeviceConnectionsStatsStorageInterface
+    - Check [in memory implementation](storage/inMemoryDeviceConnectionsStatsStorage.go) for an example.
+- An implementation of servers.StatusAPIInterface
+    - Check [default status API](servers/defaultStatusAPI.go) for an example.
 
 
-## Links
+# Links
 
 Cloud connector uses these amazing projects:
 
@@ -356,6 +330,6 @@ Cloud connector uses these amazing projects:
 - gotest.tools: https://github.com/gotestyourself/gotest.tools
 
 
-## Licensing
+# Licensing
 
 Under MIT License, check [License file](./LICENSE)
