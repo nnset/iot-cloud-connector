@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/nnset/iot-cloud-connector/connectionshandlers"
 	"github.com/nnset/iot-cloud-connector/servers"
@@ -13,24 +11,13 @@ import (
 
 func main() {
 	log := createLogger()
-	operatingSystemSignal := make(chan os.Signal)
-	shutdownServer := make(chan bool)
-
-	signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-
-	go func(log *logrus.Logger) {
-		sig := <-operatingSystemSignal
-		log.Debugf("Signal received : %s", sig)
-		log.Debug("Shutting down main")
-		shutdownServer <- true
-	}(log)
 
 	connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
 		"localhost", "8080", "tcp", "", "",
 	)
 
 	s := servers.NewCloudConnector(
-		"localhost", "9090", "tcp", log, &shutdownServer, connectionsHandler, nil,
+		"localhost", "9090", "tcp", log, connectionsHandler, nil,
 	)
 
 	s.Start()

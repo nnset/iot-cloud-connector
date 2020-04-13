@@ -1,7 +1,10 @@
 package servers
 
 import (
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,7 +30,7 @@ type CloudConnector struct {
 	network            string
 	startTime          int64
 	log                *logrus.Logger
-	serverShutdown     *chan bool
+	serverShutdown     chan bool
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
 	statusAPI          StatusAPIInterface
 	state              CloudConnectorState
@@ -56,7 +59,6 @@ NewCloudConnector Creates a new instance of CloudConnector
 func NewCloudConnector(
 	address, port, network string,
 	log *logrus.Logger,
-	connectionsHandlerShutdown *chan bool,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
 	statusAPI StatusAPIInterface) *CloudConnector {
 	return &CloudConnector{
@@ -65,7 +67,7 @@ func NewCloudConnector(
 		port:               port,
 		network:            network,
 		log:                log,
-		serverShutdown:     connectionsHandlerShutdown,
+		serverShutdown:     make(chan bool),
 		connectionsHandler: connectionsHandler,
 		statusAPI:          statusAPI,
 		startTime:          time.Now().Unix(),
@@ -81,17 +83,32 @@ func (server *CloudConnector) Start() {
 
 	connectionsHandlerShutdownIsComplete, shutdownConnectionsHandler := make(chan bool), make(chan bool)
 
+	go server.waitForShutdownSignal()
 	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.log)
 
 	server.startAPI()
 
 	server.state = CloudConnectorStarted
 
-	<-*server.serverShutdown
+	<-server.serverShutdown
 
 	server.log.Info("CloudConnector received shutdown signal")
 
 	server.shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete)
+}
+
+func (server *CloudConnector) waitForShutdownSignal() {
+	operatingSystemSignal := make(chan os.Signal)
+
+	signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+
+	go func() {
+		sig := <-operatingSystemSignal
+		server.log.Debugf("Signal received : %s", sig)
+		server.log.Debug("Shutting down main")
+
+		server.serverShutdown <- true
+	}()
 }
 
 func (server *CloudConnector) startAPI() {
