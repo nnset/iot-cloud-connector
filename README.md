@@ -238,47 +238,13 @@ to Clod Connector.
 
 ### Connections Handlers samples
 
-**pingpong**
-
-> A simple example which client and connector exchange ping - pong messages
-
-Start Cloud Connector :
-
-```shell
-    ~/iot-cloud-connector/examples/pingpong $ go build
-    
-    ~/iot-cloud-connector/examples/pingpong $ ./pingpong
-
-```
-
-Start client:
-
-```shell
-    ~/iot-cloud-connector/examples/pingpong $ python3 ping_pong_client.py localhost 8080
-```
-
-**sockets**
-
-> A simple example using plain sockets to exchange messages between clients and connector
-
-Start Cloud Connector :
-
-```shell
-    ~/iot-cloud-connector/examples/sockets $ go build
-    
-    ~/iot-cloud-connector/examples/sockets $ ./sockets
-
-```
-
-Start client:
-
-```shell
-    ~/iot-cloud-connector/examples/pingpong $ python3 sockets_client.py localhost 8080 3 10
-```
-
 **websockets**
 
 > Bidirectional communication using websockets
+
+Cloud Connector [source code](examples/websockets/main.go).
+
+Client [source code](examples/websockets/websockets_client.py).
 
 Start Cloud Connector :
 
@@ -288,10 +254,10 @@ Start Cloud Connector :
     ~/iot-cloud-connector/examples/websockets $ ./websockets
 ```
 
-Start client:
+Start client with 3 connections threads:
 
 ```shell
-    ~/iot-cloud-connector/examples/pingpong $ python3 websockets_client.py localhost 8080 3
+    ~/iot-cloud-connector/examples/websockets $ python3 websockets_client.py localhost 8080 3
 ```
 
 # How to write your own business logic
@@ -310,12 +276,14 @@ require (
 
 ```
 
-- An implementation of connectionshandlers.ConnectionsHandlerInterface
+And then you must code :
+
+- An implementation of [connectionshandlers.ConnectionsHandlerInterface](connectionshandlers/connectionsHandlerInterface.go)
     - Check [websockets sample](connectionshandlers/sampleWebsocketsHandler.go) for an example.
 
 **Optional steps**
 
-- An implementation of storage.DeviceConnectionsStatsStorageInterface
+- An implementation of [storage.DeviceConnectionsStatsStorageInterface](storage/deviceConnectionsStatsStorageInterface.go)
     - Check [in memory implementation](storage/inMemoryDeviceConnectionsStatsStorage.go) for an example.
 - An implementation of servers.StatusAPIInterface
     - Check [default status API](servers/defaultStatusAPI.go) for an example.
