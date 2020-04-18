@@ -10,16 +10,15 @@ DeviceConnectionsStatsStorageInterface DeviceConnections status information stor
 type DeviceConnectionsStatsStorageInterface interface {
 	Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error
 
-	Delete(connectionID string) error
+	Delete(deviceID string) error
 
-	Get(connectionID string) (connections.DeviceConnectionStats, error)
-	GetByDeviceID(deviceID string) (connections.DeviceConnectionStats, error)
+	Get(deviceID string) (connections.DeviceConnectionStats, error)
 
-	IncomingMessageReceived(connectionID string) error // Updates incoming messages count
-	OutgoingMessageSent(connectionID string) error     // Updates outgoing messages count
+	IncomingMessageReceived(deviceID string) error // Updates incoming messages count
+	OutgoingMessageSent(deviceID string) error     // Updates outgoing messages count
 
-	IncomingMessages(connectionID string) uint
-	OutgoingMessages(connectionID string) uint
+	IncomingMessages(deviceID string) uint
+	OutgoingMessages(deviceID string) uint
 
 	TotalIncomingMessages() uint
 	TotalOutgoingMessages() uint
