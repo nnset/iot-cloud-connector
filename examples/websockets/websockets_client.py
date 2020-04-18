@@ -37,7 +37,8 @@ class WebSocketClient:
 
     @staticmethod
     def on_message(ws, message):
-        print('Message received {0}'.format(message))
+        #print('Message received {0}'.format(message))
+        return None
 
     @staticmethod
     def on_error(ws, error):

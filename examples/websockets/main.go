@@ -30,7 +30,7 @@ func main() {
 func createLogger() *logrus.Logger {
 	var log = logrus.New()
 
-	log.SetLevel(logrus.DebugLevel)
+	log.SetLevel(logrus.ErrorLevel)
 	log.Out = os.Stderr
 
 	file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
