@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,16 +25,16 @@ CloudConnector is the main process, once you Start() it, these processes are spa
 		devices and interact with them in case you need it (this is still a TODO).
 */
 type CloudConnector struct {
-	id                 string
-	address            string
-	port               string
-	network            string
-	startTime          int64
-	log                *logrus.Logger
-	serverShutdown     chan bool
-	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
-	statusAPI          StatusAPIInterface
-	state              CloudConnectorState
+	id                      string
+	address                 string
+	port                    string
+	network                 string
+	startTime               int64
+	log                     *logrus.Logger
+	serverShutdownWaitGroup sync.WaitGroup
+	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
+	statusAPI               StatusAPIInterface
+	state                   CloudConnectorState
 }
 
 /*
@@ -62,16 +63,16 @@ func NewCloudConnector(
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
 	statusAPI StatusAPIInterface) *CloudConnector {
 	return &CloudConnector{
-		id:                 uuid.New().String(),
-		address:            address,
-		port:               port,
-		network:            network,
-		log:                log,
-		serverShutdown:     make(chan bool),
-		connectionsHandler: connectionsHandler,
-		statusAPI:          statusAPI,
-		startTime:          time.Now().Unix(),
-		state:              CloudConnectorCreated,
+		id:                      uuid.New().String(),
+		address:                 address,
+		port:                    port,
+		network:                 network,
+		log:                     log,
+		serverShutdownWaitGroup: sync.WaitGroup{},
+		connectionsHandler:      connectionsHandler,
+		statusAPI:               statusAPI,
+		startTime:               time.Now().Unix(),
+		state:                   CloudConnectorCreated,
 	}
 }
 
@@ -83,14 +84,16 @@ func (server *CloudConnector) Start() {
 
 	connectionsHandlerShutdownIsComplete, shutdownConnectionsHandler := make(chan bool), make(chan bool)
 
+	server.serverShutdownWaitGroup.Add(1)
 	go server.waitForShutdownSignal()
+
 	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.log)
 
 	server.startAPI()
 
 	server.state = CloudConnectorStarted
 
-	<-server.serverShutdown
+	server.serverShutdownWaitGroup.Wait()
 
 	server.log.Info("CloudConnector received shutdown signal")
 
@@ -107,7 +110,7 @@ func (server *CloudConnector) waitForShutdownSignal() {
 		server.log.Debugf("Signal received : %s", sig)
 		server.log.Debug("Shutting down main")
 
-		server.serverShutdown <- true
+		server.serverShutdownWaitGroup.Done()
 	}()
 }
 
@@ -247,4 +250,11 @@ State CloudConnector current state
 */
 func (server *CloudConnector) State() CloudConnectorState {
 	return server.state
+}
+
+/*
+Kill Begins shutdown procedure
+*/
+func (server *CloudConnector) Kill() {
+	server.serverShutdownWaitGroup.Done()
 }

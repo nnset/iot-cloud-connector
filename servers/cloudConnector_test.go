@@ -75,6 +75,7 @@ func TestStartingACloudServerShouldSetItsStateToStarted(t *testing.T) {
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 
+	defer s.Kill()
 	go s.Start()
 	time.Sleep(20 * time.Millisecond)
 
@@ -94,10 +95,11 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 		connectionsStats: inMemoryConnectionsStats,
 	}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 
+	defer s.Kill()
 	go s.Start()
 	time.Sleep(20 * time.Millisecond)
 
