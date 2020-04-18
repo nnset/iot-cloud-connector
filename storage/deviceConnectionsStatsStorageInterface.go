@@ -25,4 +25,5 @@ type DeviceConnectionsStatsStorageInterface interface {
 
 	IsDeviceConnected(deviceID string) bool
 	OpenConnections() uint
+	ConnectedDevices() []string
 }

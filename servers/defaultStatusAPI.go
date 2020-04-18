@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -67,6 +68,7 @@ func (api *DefaultStatusAPI) router() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/cloud-connector/status", api.status)
 	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus)
+	router.HandleFunc("/devices", api.devicesList)
 
 	return router
 }
@@ -95,6 +97,10 @@ type deviceStatusPayload struct {
 	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
 	OutgoingMessages          uint    `json:"outgoing_messages"`
 	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
+}
+
+type devicesListPayload struct {
+	Devices []string `json:"devices"`
 }
 
 type errorPayload struct {
@@ -183,7 +189,7 @@ func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
 }
 
 /**
- * @api {get} /devices/status/:deviceID Cloud Connector status
+ * @api {get} /devices/status/:deviceID Device status
  * @apiName DeviceStatus
  * @apiDescription Stats and status from a Device connection to the server
  * @apiGroup Devices
@@ -242,6 +248,40 @@ func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request
 			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
 			OutgoingMessages:          outgoingMessages,
 			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+		},
+	)
+}
+
+/**
+ * @api {get} /devices Connected devices
+ * @apiName DeviceStatus
+ * @apiDescription A list of all connected devices
+ * @apiGroup Devices
+ *
+ * @apiSuccess {String[]} devices Connected Device's IDs
+ *
+ * @apiSuccessExample {json} Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *        "devices": [
+ *          "device_id_1", "device_id_2"
+ *        ]
+ *     }
+ */
+func (api *DefaultStatusAPI) devicesList(w http.ResponseWriter, r *http.Request) {
+	if api.authRequest(r) != nil {
+		api.unauthorized(w)
+		return
+	}
+
+	api.restAPIHeaders(w)
+
+	devices := api.cloudConnector.ConnectedDevices()
+	sort.Strings(devices)
+
+	json.NewEncoder(w).Encode(
+		devicesListPayload{
+			Devices: devices,
 		},
 	)
 }

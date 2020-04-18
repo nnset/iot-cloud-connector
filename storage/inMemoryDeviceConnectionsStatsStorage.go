@@ -138,6 +138,24 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) OpenConnections() uint {
 }
 
 /*
+ConnectedDevices A list of connected Devices IDs
+*/
+func (storage *InMemoryDeviceConnectionsStatsStorage) ConnectedDevices() []string {
+	storage.dataMutex.Lock()
+	defer storage.dataMutex.Unlock()
+
+	devices := make([]string, len(storage.activeConnections))
+
+	i := 0
+	for id := range storage.activeConnections {
+		devices[i] = id
+		i++
+	}
+
+	return devices
+}
+
+/*
 IncomingMessages How many messages current server received from a given connection.
 If connection does not exists 0 is returned.
 */

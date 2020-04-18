@@ -87,7 +87,7 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 
 	inMemoryConnectionsStats := storage.NewInMemoryDeviceConnectionsStatsStorage()
 	inMemoryConnectionsStats.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
-	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
 	inMemoryConnectionsStats.IncomingMessageReceived("device_abc")
 	inMemoryConnectionsStats.IncomingMessageReceived("device_xyz")
 
@@ -107,4 +107,22 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	assert.Assert(t, s.IncomingMessages("device_abc") == 1)
 	assert.Assert(t, s.IncomingMessages("device_xyz") == 1)
 	assert.Assert(t, s.IncomingMessages("") == 2)
+}
+
+func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
+	log := createLogger()
+
+	inMemoryConnectionsStats := storage.NewInMemoryDeviceConnectionsStatsStorage()
+	inMemoryConnectionsStats.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
+
+	connectionsHandler := dummyConnectionsHandler{
+		connectionsStats: inMemoryConnectionsStats,
+	}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	expectedIDs := []string{"device_abc", "device_xyz"}
+
+	assert.DeepEqual(t, expectedIDs, s.ConnectedDevices())
 }

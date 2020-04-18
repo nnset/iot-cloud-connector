@@ -187,6 +187,15 @@ func (server *CloudConnector) OpenConnections() uint {
 }
 
 /*
+ConnectedDevices Which devices are currently connected
+*/
+func (server *CloudConnector) ConnectedDevices() []string {
+	return server.connectionsHandler.Stats().ConnectedDevices()
+}
+
+// Devices []string `json:"devices"`
+
+/*
 IncomingMessages How many incoming messages were processed by a Device or globally if deviceID is empty
 */
 func (server *CloudConnector) IncomingMessages(deviceID string) uint {

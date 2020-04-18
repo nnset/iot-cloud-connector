@@ -1,7 +1,7 @@
 package servers
 
 /*
-StatusApiInterface
+StatusAPIInterface
 */
 type StatusAPIInterface interface {
 	Start() error
