@@ -6,6 +6,7 @@ import (
 
 	"github.com/nnset/iot-cloud-connector/connectionshandlers"
 	"github.com/nnset/iot-cloud-connector/servers"
+	"github.com/nnset/iot-cloud-connector/storage"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ func main() {
 	)
 
 	s := servers.NewCloudConnector(
-		"localhost", "9090", "tcp", log, connectionsHandler, nil,
+		"localhost", "9090", "tcp", log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil,
 	)
 
 	s.Start()

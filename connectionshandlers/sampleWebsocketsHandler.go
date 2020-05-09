@@ -55,7 +55,6 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 		connections:                make(map[string]*websocket.Conn),
 		queriesToDevicesWaiting:    make(map[string]chan deviceMessage),
 		commandsToDevicesWaiting:   make(map[string]chan deviceMessage),
-		connectionsStats:           storage.NewInMemoryDeviceConnectionsStatsStorage(),
 		dataMutex:                  &sync.Mutex{},
 		certFile:                   certFile,
 		keyFile:                    keyFile,
@@ -67,10 +66,11 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 /*
 Listen TODO
 */
-func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error {
+func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
 	handler.log = log
+	handler.connectionsStats = connectionsStats
 
-	go handler.gracefulShutdown(shutdownChannel, shutdownIsCompleteChannel)
+	go handler.gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel)
 
 	http.HandleFunc("/connect", handler.handleConnection)
 
@@ -100,7 +100,7 @@ func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsComple
 	return nil
 }
 
-func (handler *SampleWebSocketsHandler) gracefulShutdown(shutdownChannel, shutdownIsCompleteChannel *chan bool) {
+func (handler *SampleWebSocketsHandler) gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel *chan bool) {
 	<-*shutdownChannel
 	handler.log.Debugf("SampleWebsocketsHandler shutdown signal received. Proceeding.")
 
@@ -231,13 +231,6 @@ func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, 
 			handler.log.Debugf("recv: Type: %d, %s", messageType, message)
 		}
 	}
-}
-
-/*
-Stats TODO
-*/
-func (handler *SampleWebSocketsHandler) Stats() storage.DeviceConnectionsStatsStorageInterface {
-	return handler.connectionsStats
 }
 
 /*

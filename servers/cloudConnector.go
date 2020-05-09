@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nnset/iot-cloud-connector/connectionshandlers"
+	"github.com/nnset/iot-cloud-connector/storage"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,6 +36,7 @@ type CloudConnector struct {
 	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
 	statusAPI               CloudConnectorAPIInterface
 	state                   CloudConnectorState
+	connectionsStats        storage.DeviceConnectionsStatsStorageInterface
 }
 
 /*
@@ -61,6 +63,7 @@ func NewCloudConnector(
 	address, port, network string,
 	log *logrus.Logger,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
+	connectionsStats storage.DeviceConnectionsStatsStorageInterface,
 	statusAPI CloudConnectorAPIInterface) *CloudConnector {
 	return &CloudConnector{
 		id:                      uuid.New().String(),
@@ -73,6 +76,7 @@ func NewCloudConnector(
 		statusAPI:               statusAPI,
 		startTime:               time.Now().Unix(),
 		state:                   CloudConnectorCreated,
+		connectionsStats:        connectionsStats,
 	}
 }
 
@@ -87,7 +91,7 @@ func (server *CloudConnector) Start() {
 	server.serverShutdownWaitGroup.Add(1)
 	go server.waitForShutdownSignal()
 
-	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.log)
+	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.connectionsStats, server.log)
 
 	server.startAPI()
 
@@ -137,8 +141,8 @@ func (server *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHa
 	server.state = CloudConnectorStopped
 
 	server.log.Info("CloudConnector stopped.")
-	server.log.Info("  Total incoming messages processed: ", server.connectionsHandler.Stats().TotalIncomingMessages())
-	server.log.Info("  Total outgoing messages processed: ", server.connectionsHandler.Stats().TotalOutgoingMessages())
+	server.log.Info("  Total incoming messages processed: ", server.connectionsStats.TotalIncomingMessages())
+	server.log.Info("  Total outgoing messages processed: ", server.connectionsStats.TotalOutgoingMessages())
 	server.log.Infof("  Uptime: %d seconds", server.Uptime(""))
 }
 
@@ -162,7 +166,7 @@ func (server *CloudConnector) Uptime(deviceID string) int64 {
 		return time.Now().Unix() - server.startTime
 	}
 
-	connection, err := server.connectionsHandler.Stats().Get(deviceID)
+	connection, err := server.connectionsStats.Get(deviceID)
 
 	if err != nil {
 		// TODO should we return error or just 0 ?
@@ -183,14 +187,14 @@ func (server *CloudConnector) Uptime(deviceID string) int64 {
 OpenConnections How many connections are currently open on this server
 */
 func (server *CloudConnector) OpenConnections() uint {
-	return server.connectionsHandler.Stats().OpenConnections()
+	return server.connectionsStats.OpenConnections()
 }
 
 /*
 ConnectedDevices Which devices are currently connected
 */
 func (server *CloudConnector) ConnectedDevices() []string {
-	return server.connectionsHandler.Stats().ConnectedDevices()
+	return server.connectionsStats.ConnectedDevices()
 }
 
 /*
@@ -198,10 +202,10 @@ IncomingMessages How many incoming messages were processed by a Device or global
 */
 func (server *CloudConnector) IncomingMessages(deviceID string) uint {
 	if deviceID == "" {
-		return server.connectionsHandler.Stats().TotalIncomingMessages()
+		return server.connectionsStats.TotalIncomingMessages()
 	}
 
-	return server.connectionsHandler.Stats().IncomingMessages(deviceID)
+	return server.connectionsStats.IncomingMessages(deviceID)
 }
 
 /*
@@ -209,10 +213,10 @@ OutgoingMessages How many messages this server sent to a Device or globally if d
 */
 func (server *CloudConnector) OutgoingMessages(deviceID string) uint {
 	if deviceID == "" {
-		return server.connectionsHandler.Stats().TotalOutgoingMessages()
+		return server.connectionsStats.TotalOutgoingMessages()
 	}
 
-	return server.connectionsHandler.Stats().OutgoingMessages(deviceID)
+	return server.connectionsStats.OutgoingMessages(deviceID)
 }
 
 /*

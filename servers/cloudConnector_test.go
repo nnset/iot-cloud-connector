@@ -36,7 +36,7 @@ type dummyConnectionsHandler struct {
 	connectionsStats storage.DeviceConnectionsStatsStorageInterface
 }
 
-func (d *dummyConnectionsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error {
+func (d *dummyConnectionsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
 	return nil
 }
 
@@ -71,11 +71,9 @@ func (d *dummyConnectionsHandler) CommandsWaiting() uint {
 func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testing.T) {
 	log := createLogger()
 
-	connectionsHandler := dummyConnectionsHandler{
-		connectionsStats: storage.NewInMemoryDeviceConnectionsStatsStorage(),
-	}
+	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	assert.Assert(t, s != nil)
 
@@ -87,7 +85,7 @@ func TestCreatingACloudServerShouldSetItsStateToCreated(t *testing.T) {
 	log := createLogger()
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 }
@@ -101,11 +99,9 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	inMemoryConnectionsStats.IncomingMessageReceived("device_abc")
 	inMemoryConnectionsStats.IncomingMessageReceived("device_xyz")
 
-	connectionsHandler := dummyConnectionsHandler{
-		connectionsStats: inMemoryConnectionsStats,
-	}
+	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, inMemoryConnectionsStats, nil)
 
 	defer func() {
 		s.Kill()
@@ -126,11 +122,9 @@ func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
 	inMemoryConnectionsStats.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
 	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
 
-	connectionsHandler := dummyConnectionsHandler{
-		connectionsStats: inMemoryConnectionsStats,
-	}
+	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, inMemoryConnectionsStats, nil)
 
 	expectedIDs := []string{"device_abc", "device_xyz"}
 
@@ -142,7 +136,7 @@ func TestQueriesWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	assert.Equal(t, uint(1), s.QueriesWaiting())
 }
@@ -152,7 +146,7 @@ func TestCommandsWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) 
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	assert.Equal(t, uint(2), s.CommandsWaiting())
 }
@@ -162,7 +156,7 @@ func TestSendingACommandShouldReturnWhatConnectionsHandlerReturns(t *testing.T) 
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	response, responseCode, err := s.SendCommand("payload", "dummy_id")
 
@@ -176,7 +170,7 @@ func TestSendingAQueryShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	response, responseCode, err := s.SendQuery("payload", "dummy_id")
 
@@ -190,7 +184,7 @@ func TestSendingAQueryToADeviceThatIsNotConnectedShouldReturnAnError(t *testing.
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
 
 	response, responseCode, err := s.SendQuery("payload", "abc-123")
 

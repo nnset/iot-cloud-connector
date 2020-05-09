@@ -11,8 +11,7 @@ just implement this interface so CloudConnector will be able to support your dom
 */
 type ConnectionsHandlerInterface interface {
 	// TODO Document interface
-	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error
-	Stats() storage.DeviceConnectionsStatsStorageInterface // Move this out of connections handler this should be on cloud connector
+	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
 	SendCommand(payload, deviceID string) (string, int, error)
 	SendQuery(payload, deviceID string) (string, int, error)
 	QueriesWaiting() uint
