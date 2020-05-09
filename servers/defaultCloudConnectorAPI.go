@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,10 +14,10 @@ import (
 )
 
 /*
-DefaultStatusAPI This REST API server will let you check for stats and status regarding the server
-and all its open connections
+DefaultCloudConnectorAPI This REST API will let you check stats, status and interact with all your
+IoT devices
 */
-type DefaultStatusAPI struct {
+type DefaultCloudConnectorAPI struct {
 	address        string
 	port           string
 	log            *logrus.Logger
@@ -25,10 +26,10 @@ type DefaultStatusAPI struct {
 }
 
 /*
-NewDefaultStatusAPI Creates a new API server
+NewDefaultCloudConnectorAPI Creates a new API server
 */
-func NewDefaultStatusAPI(address, port string, log *logrus.Logger, cloudConnector *CloudConnector) *DefaultStatusAPI {
-	return &DefaultStatusAPI{
+func NewDefaultCloudConnectorAPI(address, port string, log *logrus.Logger, cloudConnector *CloudConnector) *DefaultCloudConnectorAPI {
+	return &DefaultCloudConnectorAPI{
 		address:        address,
 		port:           port,
 		log:            log,
@@ -39,8 +40,8 @@ func NewDefaultStatusAPI(address, port string, log *logrus.Logger, cloudConnecto
 /*
 Start Starts the API server on the configured port
 */
-func (api *DefaultStatusAPI) Start() error {
-	api.cloudConnector.log.Debugf("Starting StatusAPI")
+func (api *DefaultCloudConnectorAPI) Start() error {
+	api.cloudConnector.log.Debugf("Starting Default REST API")
 
 	listenAddr := fmt.Sprintf("%s:%s", api.address, api.port)
 
@@ -52,7 +53,7 @@ func (api *DefaultStatusAPI) Start() error {
 		IdleTimeout:  15 * time.Second,
 	}
 
-	api.cloudConnector.log.Debugf("StatusAPI available at %s:%s", api.address, api.port)
+	api.cloudConnector.log.Debugf("Default REST API available at %s:%s", api.address, api.port)
 
 	// TODO api.httpServer.ListenAndServeTLS
 
@@ -63,61 +64,30 @@ func (api *DefaultStatusAPI) Start() error {
 	return nil
 }
 
-func (api *DefaultStatusAPI) router() *mux.Router {
+func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	// TODO does mux have a middleware in order to perform auth ?
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/cloud-connector/status", api.status)
-	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus)
-	router.HandleFunc("/devices", api.devicesList)
+
+	router.HandleFunc("/cloud-connector/status", api.status).Methods("GET")
+	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus).Methods("GET")
+	router.HandleFunc("/devices", api.devicesList).Methods("GET")
+	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods("POST")
+	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods("POST")
 
 	return router
 }
 
-//
-// Payloads
-//
-
-type statusPayload struct {
-	ServerCurrentState        CloudConnectorState `json:"server_current_state"`
-	Connections               uint                `json:"connections"`
-	Uptime                    int64               `json:"uptime"`
-	IncomingMessages          uint                `json:"incoming_messages"`
-	IncomingMessagesPerSecond float64             `json:"incoming_messages_per_second"`
-	OutgoingMessages          uint                `json:"outgoing_messages"`
-	OutgoingMessagesPerSecond float64             `json:"outgoing_messages_per_second"`
-	GoRoutines                int                 `json:"go_routines"`
-	SystemMemory              uint                `json:"system_memory"`
-	AllocatedMemory           uint                `json:"allocated_memory"`
-	HeapAllocatedMemory       uint                `json:"heap_allocated_memory"`
-}
-
-type deviceStatusPayload struct {
-	Uptime                    int64   `json:"uptime"`
-	IncomingMessages          uint    `json:"incoming_messages"`
-	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
-	OutgoingMessages          uint    `json:"outgoing_messages"`
-	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
-}
-
-type devicesListPayload struct {
-	Devices []string `json:"devices"`
-}
-
-type errorPayload struct {
-	Error string `json:"error"`
-}
-
-func (api *DefaultStatusAPI) restAPIHeaders(w http.ResponseWriter) {
+func (api *DefaultCloudConnectorAPI) restAPIHeaders(w http.ResponseWriter, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(statusCode)
 }
 
-func (api *DefaultStatusAPI) authRequest(r *http.Request) error {
+func (api *DefaultCloudConnectorAPI) authRequest(r *http.Request) error {
 	// TODO security layer
 	return nil
 }
 
-func (api *DefaultStatusAPI) unauthorized(w http.ResponseWriter) {
+func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
 
@@ -139,6 +109,8 @@ func (api *DefaultStatusAPI) unauthorized(w http.ResponseWriter) {
  * @apiSuccess {Integer} incoming_messages_per_second How may messages the server is receiving per second.
  * @apiSuccess {Integer} outgoing_messages How may messages the server sent to the connected clients.
  * @apiSuccess {Integer} outgoing_messages_per_second How may messages the server is sending per second.
+ * @apiSuccess {Integer} commands_waiting How many commands to devices are currently waiting feedback from the device.
+ * @apiSuccess {Integer} queries_waiting How many queries to devices are currently waiting device's response.
  * @apiSuccess {Integer} go_routines How may Go routines are current spawned.
  * @apiSuccess {Integer} system_memory Total mega bytes of memory obtained from the OS.
  * @apiSuccess {Integer} allocated_memory Mega bytes allocated for heap objects.
@@ -154,18 +126,20 @@ func (api *DefaultStatusAPI) unauthorized(w http.ResponseWriter) {
  *       "incoming_messages_per_second": int,
  *       "outgoing_messages": int,
  *       "outgoing_messages_per_second": int,
+ *       "commands_waiting": int,
+ *       "queries_waiting": int,
  *       "go_routines": int,
  *       "system_memory": int,
  *       "allocated_memory": int
  *     }
  */
-func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
+func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Request) {
 	if api.authRequest(r) != nil {
 		api.unauthorized(w)
 		return
 	}
 
-	api.restAPIHeaders(w)
+	api.restAPIHeaders(w, http.StatusOK)
 
 	incomingMessages := api.cloudConnector.IncomingMessages("")
 	outgoingMessages := api.cloudConnector.OutgoingMessages("")
@@ -179,6 +153,8 @@ func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
 			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
 			OutgoingMessages:          outgoingMessages,
 			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+			CommandsWaiting:           api.cloudConnector.CommandsWaiting(),
+			QueriesWaiting:            api.cloudConnector.QueriesWaiting(),
 			GoRoutines:                api.cloudConnector.GoRoutinesSpawned(),
 			SystemMemory:              api.cloudConnector.SystemMemory(),
 			AllocatedMemory:           api.cloudConnector.AllocatedMemory(),
@@ -221,7 +197,7 @@ func (api *DefaultStatusAPI) status(w http.ResponseWriter, r *http.Request) {
  *     }
  *
  */
-func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
+func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
 	if api.authRequest(r) != nil {
 		api.unauthorized(w)
 		return
@@ -239,7 +215,7 @@ func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	api.restAPIHeaders(w)
+	api.restAPIHeaders(w, http.StatusOK)
 
 	json.NewEncoder(w).Encode(
 		deviceStatusPayload{
@@ -258,7 +234,7 @@ func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request
  * @apiDescription A list of all connected devices
  * @apiGroup Devices
  *
- * @apiSuccess {String[]} devices Connected Device's IDs
+ * @apiSuccess {String[]} devices Connected Devices IDs
  *
  * @apiSuccessExample {json} Success-Response:
  *     HTTP/1.1 200 OK
@@ -268,13 +244,13 @@ func (api *DefaultStatusAPI) deviceStatus(w http.ResponseWriter, r *http.Request
  *        ]
  *     }
  */
-func (api *DefaultStatusAPI) devicesList(w http.ResponseWriter, r *http.Request) {
+func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.Request) {
 	if api.authRequest(r) != nil {
 		api.unauthorized(w)
 		return
 	}
 
-	api.restAPIHeaders(w)
+	api.restAPIHeaders(w, http.StatusOK)
 
 	devices := api.cloudConnector.ConnectedDevices()
 	sort.Strings(devices)
@@ -286,12 +262,136 @@ func (api *DefaultStatusAPI) devicesList(w http.ResponseWriter, r *http.Request)
 	)
 }
 
+/**
+ * @api {post} /devices/command/:deviceID
+ * @apiName DeviceCommand
+ * @apiDescription Send a command to a connected device. Sumbitted content will be forwarded to the device.
+ * @apiGroup Devices
+ *
+ * @apiParam {string} payload
+ *
+ * @apiSuccess {String="OK",""} response
+ * @apiSuccess {String} errors
+ *
+ * @apiSuccessExample {json} Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *        "response": "string",
+ *        "errors": ""
+ *     }
+ *
+ * @apiError DeviceNotFound Device with <code>deviceID</code> is not connected.
+ *
+ * @apiErrorExample {json} Error-Response:
+ *     HTTP/1.1 404 Not Found
+ *     {
+ *       "response": ""
+ *       "errors": "Device :deviceID is not connected"
+ *     }
+ *
+ * @apiError DeviceTimeout Command to Device timed out
+ *
+ * @apiErrorExample {json} Error-Response:
+ *     HTTP/1.1 408 Time Out
+ *     {
+ *       "response": ""
+ *       "errors": "Device command timeout"
+ *     }
+ *
+ */
+func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.Request) {
+	if api.authRequest(r) != nil {
+		api.unauthorized(w)
+		return
+	}
+
+	vars := mux.Vars(r)
+
+	commandResponse, responseCode, err := api.cloudConnector.SendCommand(api.rawRequestBody(r), vars["deviceID"])
+
+	api.responseFromDevice(w, commandResponse, responseCode, err)
+}
+
+/**
+ * @api {post} /devices/query/:deviceID
+ * @apiName DeviceQuery
+ * @apiDescription Send a query to a connected device. Sumbitted content will be forwarded to the device.
+ * @apiGroup Devices
+ *
+ * @apiParam {string} payload
+ *
+ * @apiSuccess {String} response Device's response to the query
+ * @apiSuccess {String} errors
+ *
+ * @apiSuccessExample {json} Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *        "response": "string",
+ *        "errors": ""
+ *     }
+ *
+ * @apiError DeviceNotFound Device with <code>deviceID</code> is not connected.
+ *
+ * @apiErrorExample {json} Error-Response:
+ *     HTTP/1.1 404 Not Found
+ *     {
+ *       "response": ""
+ *       "errors": "Device :deviceID is not connected"
+ *     }
+ *
+ * @apiError DeviceTimeout Query to Device timed out
+ *
+ * @apiErrorExample {json} Error-Response:
+ *     HTTP/1.1 408 Time Out
+ *     {
+ *       "response": ""
+ *       "errors": "Device query timeout"
+ *     }
+ *
+ */
+func (api *DefaultCloudConnectorAPI) sendQuery(w http.ResponseWriter, r *http.Request) {
+	if api.authRequest(r) != nil {
+		api.unauthorized(w)
+		return
+	}
+
+	vars := mux.Vars(r)
+
+	queryResponse, responseCode, err := api.cloudConnector.SendQuery(api.rawRequestBody(r), vars["deviceID"])
+
+	api.responseFromDevice(w, queryResponse, responseCode, err)
+}
+
+func (api *DefaultCloudConnectorAPI) responseFromDevice(w http.ResponseWriter, commandResponse string, responseCode int, err error) {
+
+	payload := deviceResponsePayload{
+		Response: commandResponse,
+	}
+
+	if err != nil {
+		payload = deviceResponsePayload{
+			Response: "",
+			Errors:   err.Error(),
+		}
+	}
+
+	api.restAPIHeaders(w, responseCode)
+	json.NewEncoder(w).Encode(payload)
+}
+
+func (api *DefaultCloudConnectorAPI) rawRequestBody(r *http.Request) string {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+
+	return buf.String()
+}
+
 /*
 Stop Stops the API server
 @see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
 */
-func (api *DefaultStatusAPI) Stop() {
-	api.log.Debug("Shutting down defaultStatusAPI")
+func (api *DefaultCloudConnectorAPI) Stop() {
+	api.log.Debug("Shutting down defaultCloudConnectorAPI")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -299,8 +399,8 @@ func (api *DefaultStatusAPI) Stop() {
 	api.httpServer.SetKeepAlivesEnabled(false)
 
 	if err := api.httpServer.Shutdown(ctx); err != nil {
-		api.log.Fatalf("Could not gracefully shutdown defaultStatusAPI http server %v\n", err)
+		api.log.Fatalf("Could not gracefully shutdown defaultCloudConnectorAPI http server %v\n", err)
 	} else {
-		api.log.Debug("defaultStatusAPI is shutdown")
+		api.log.Debug("defaultCloudConnectorAPI is shutdown")
 	}
 }

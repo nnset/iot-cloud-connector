@@ -17,9 +17,10 @@ code your own business logic using [Go](https://golang.org/).
 | ------------- | ------------- |
 | IoT device  | Sensors, actuators, gateways or any IoT device you want to monitor or even control, with Internet access |
 | Cloud connector  | Handles, start and shutdown actions, also monitors memory usage from connections.  |
-| Status API | A simple REST API where you can fetch data from connected devices and theirs current status. |
-| Control API | To do.  |
-| Connections handler  | This is your code, here you define communications protocol and business rules. We have coded some samples such as a Web sockets handler in order to help you with this. |
+| REST API | A simple REST API where you query and send commands to your devices and also check Cloud Connector performance info. You can code your own API however we provide a default one. |
+| Connections handler  | This is your code, here you define communications protocol and business logic. We have coded some samples such as a Web sockets handler in order to help you with this. |
+| Command  | Send an order to an IoT Device. Commands may change device's state. |
+| Query  | Fetch information from an IoT Device. Queries shall not change device's state, therefore they are easily cacheable in case you need it. |
 
 If you have a strong Go or software development background, you may skip the rest and go to [how to write your own logic](#how-to-write-your-own-business-logic).
 
@@ -48,7 +49,7 @@ func main() {
 		"localhost", "8080", "tcp", "", "",
 	)
 
-    // A default Status REST API will be available at localhost:9090
+    // A default REST API will be available at localhost:9090
 	s := servers.NewCloudConnector(
 		"localhost", "9090", "tcp", log, connectionsHandler, nil,
 	)
@@ -85,8 +86,8 @@ $ ./websockets
 
     Using stdErr for log
     DEBU[0000] Starting CloudConnector #d24def51-0220-4a71-8da7-8eb3d4e93bb3 at localhost:9090 
-    DEBU[0000] Starting StatusAPI                           
-    DEBU[0000] StatusAPI available at localhost:9090        
+    DEBU[0000] Starting REST API
+    DEBU[0000] REST API available at localhost:9090        
     DEBU[0000] Serving websockets via ws (TLS OFF) at localhost:8080 
     DEBU[0000]   Connect endpoint ws://localhost:8080/connect 
 
@@ -125,7 +126,7 @@ Lets talk about the basic structs.
 
 #### servers.CloudConnector
 
-> You can see this as the control layer. It starts and stops the service and helps StatusAPIInterface to fetch information.
+> You can see this as the control layer. It starts and stops the service and helps CloudConnectorAPIInterface to fetch information.
 
 ```go
 type CloudConnector struct {
@@ -137,7 +138,7 @@ type CloudConnector struct {
 	log                *logrus.Logger
 	serverShutdown     chan bool
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
-	statusAPI          StatusAPIInterface
+    api                CloudConnectorAPIInterface
 	state              CloudConnectorState
 }
 ```
@@ -147,8 +148,7 @@ type CloudConnector struct {
 Starts all functional layers:
 
 * ConnectionsHandler (Your business logic)
-* StatusAPIInterface (Your own or a default one)
-* ControlAPIInterface (Not available yet)
+* CloudConnectorAPI (Your own or a default one)
 
 Handles service shutdown when a os.signal is send to stop the process.
 CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is enforced.
@@ -202,13 +202,14 @@ implementations.
 > Implementing your own ConnectionsHandlerInterface allows you to code any 
 kind of business rules you need to manage your IoT devices.
 
-Only 2 methods are required by this interface:
-
 ```go
 type ConnectionsHandlerInterface interface {
 	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error
-
 	Stats() storage.DeviceConnectionsStatsStorageInterface
+	SendCommand(payload, deviceID string) (string, int, error)
+	SendQuery(payload, deviceID string) (string, int, error)
+	QueriesWaiting() uint
+	CommandsWaiting() uint
 }
 ```
 
@@ -227,13 +228,13 @@ On Listen method these two channels are important:
 Check a ready to use thread safe in memory implementation at [storage.InMemoryDeviceConnectionsStatsStorage](storage/inMemoryDeviceConnectionsStatsStorage.go)
 
 
-#### servers.StatusAPIInterface
+#### servers.CloudConnectorAPIInterface
 
 > Each Cloud Connector instance has a build in REST API where users may fetch information regarding
 connector status and current connections.
 
 However you may want to offer your own API, thats fine just implement this interface and pass the instance
-to Clod Connector.
+to Cloud Connector.
 
 
 ### Connections Handlers samples
@@ -285,8 +286,8 @@ And then you must code :
 
 - An implementation of [storage.DeviceConnectionsStatsStorageInterface](storage/deviceConnectionsStatsStorageInterface.go)
     - Check [in memory implementation](storage/inMemoryDeviceConnectionsStatsStorage.go) for an example.
-- An implementation of servers.StatusAPIInterface
-    - Check [default status API](servers/defaultStatusAPI.go) for an example.
+- An implementation of servers.CloudConnectorAPIInterface
+    - Check [default REST API](servers/defaultCloudConnectorAPI.go) for an example.
 
 
 # Links

@@ -6,7 +6,8 @@ import random
 # pip install websocket-client (https://github.com/websocket-client/websocket-client)
 import websocket
 from threading import Thread
-
+from string import ascii_lowercase
+from random import choice
 
 class WebSocketClient:
 
@@ -37,7 +38,23 @@ class WebSocketClient:
 
     @staticmethod
     def on_message(ws, message):
-        #print('Message received {0}'.format(message))
+        print('Message received {0}'.format(message))
+
+        json_message = json.loads(message)
+
+        response = 'OK'
+        
+        if 'id' in json_message:
+            response = json.dumps({
+                'id': json_message['id'],
+                'payload': 'Response message #{}'.format(json_message['id']),
+                'time': int(time.time())
+            })
+        
+        #time.sleep(0.8) Simulate some kind of delay on the Device
+        print('Responding {0}'.format(response))
+
+        ws.send(response)
         return None
 
     @staticmethod
@@ -48,9 +65,7 @@ class WebSocketClient:
     def on_open(ws):
         def run(*args):
             try:
-                while True:
-                    ws.send("Hello %d" % i)
-                    time.sleep(random.randint(0, 10))
+                ws.send("Hello %d" % i)
             except websocket.WebSocketConnectionClosedException:
                 pass
 

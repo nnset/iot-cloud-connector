@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -43,6 +44,30 @@ func (d *dummyConnectionsHandler) Stats() storage.DeviceConnectionsStatsStorageI
 	return d.connectionsStats
 }
 
+func (d *dummyConnectionsHandler) SendCommand(payload, deviceID string) (string, int, error) {
+	if deviceID == "dummy_id" {
+		return "Command OK", 200, nil
+	}
+
+	return "", 404, errors.New("Device not connected")
+}
+
+func (d *dummyConnectionsHandler) SendQuery(payload, deviceID string) (string, int, error) {
+	if deviceID == "dummy_id" {
+		return "Query OK", 200, nil
+	}
+
+	return "", 404, errors.New("Device not connected")
+}
+
+func (d *dummyConnectionsHandler) QueriesWaiting() uint {
+	return 1
+}
+
+func (d *dummyConnectionsHandler) CommandsWaiting() uint {
+	return 2
+}
+
 func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testing.T) {
 	log := createLogger()
 
@@ -67,21 +92,6 @@ func TestCreatingACloudServerShouldSetItsStateToCreated(t *testing.T) {
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 }
 
-func TestStartingACloudServerShouldSetItsStateToStarted(t *testing.T) {
-	log := createLogger()
-	connectionsHandler := dummyConnectionsHandler{}
-
-	s := NewCloudConnector("localhost", "9090", "tcp", log, &connectionsHandler, nil)
-
-	assert.Assert(t, s.State() == CloudConnectorCreated)
-
-	defer s.Kill()
-	go s.Start()
-	time.Sleep(20 * time.Millisecond)
-
-	assert.Assert(t, s.State() == CloudConnectorStarted)
-}
-
 func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	log := createLogger()
 
@@ -97,13 +107,13 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 
 	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
 
-	assert.Assert(t, s.State() == CloudConnectorCreated)
-
-	defer s.Kill()
+	defer func() {
+		s.Kill()
+		time.Sleep(20 * time.Millisecond)
+	}()
 	go s.Start()
 	time.Sleep(20 * time.Millisecond)
 
-	assert.Assert(t, s.State() == CloudConnectorStarted)
 	assert.Assert(t, s.IncomingMessages("device_abc") == 1)
 	assert.Assert(t, s.IncomingMessages("device_xyz") == 1)
 	assert.Assert(t, s.IncomingMessages("") == 2)
@@ -125,4 +135,66 @@ func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
 	expectedIDs := []string{"device_abc", "device_xyz"}
 
 	assert.DeepEqual(t, expectedIDs, s.ConnectedDevices())
+}
+
+func TestQueriesWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	assert.Equal(t, uint(1), s.QueriesWaiting())
+}
+
+func TestCommandsWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	assert.Equal(t, uint(2), s.CommandsWaiting())
+}
+
+func TestSendingACommandShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	response, responseCode, err := s.SendCommand("payload", "dummy_id")
+
+	assert.Equal(t, "Command OK", response)
+	assert.Equal(t, 200, responseCode)
+	assert.Equal(t, nil, err)
+}
+
+func TestSendingAQueryShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	response, responseCode, err := s.SendQuery("payload", "dummy_id")
+
+	assert.Equal(t, "Query OK", response)
+	assert.Equal(t, 200, responseCode)
+	assert.Equal(t, nil, err)
+}
+
+func TestSendingAQueryToADeviceThatIsNotConnectedShouldReturnAnError(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector("localhost", "9091", "tcp", log, &connectionsHandler, nil)
+
+	response, responseCode, err := s.SendQuery("payload", "abc-123")
+
+	assert.Equal(t, "", response)
+	assert.Equal(t, 404, responseCode)
+	assert.Error(t, err, "Device not connected")
 }

@@ -20,7 +20,7 @@ CloudConnector is the main process, once you Start() it, these processes are spa
 		This is the instance you coded, there you handle your connections and business logic.
 		Check connectionshandlers/sample*.go files for some examples.
 
-	- An instance of StatusAPIInterface
+	- An instance of CloudConnectorAPIInterface
 		This opens a http/s server serving a JSON API where you can fetch the status of your connected
 		devices and interact with them in case you need it (this is still a TODO).
 */
@@ -33,7 +33,7 @@ type CloudConnector struct {
 	log                     *logrus.Logger
 	serverShutdownWaitGroup sync.WaitGroup
 	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
-	statusAPI               StatusAPIInterface
+	statusAPI               CloudConnectorAPIInterface
 	state                   CloudConnectorState
 }
 
@@ -61,7 +61,7 @@ func NewCloudConnector(
 	address, port, network string,
 	log *logrus.Logger,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
-	statusAPI StatusAPIInterface) *CloudConnector {
+	statusAPI CloudConnectorAPIInterface) *CloudConnector {
 	return &CloudConnector{
 		id:                      uuid.New().String(),
 		address:                 address,
@@ -116,7 +116,7 @@ func (server *CloudConnector) waitForShutdownSignal() {
 
 func (server *CloudConnector) startAPI() {
 	if server.statusAPI == nil {
-		server.statusAPI = NewDefaultStatusAPI(server.address, server.port, server.log, server)
+		server.statusAPI = NewDefaultCloudConnectorAPI(server.address, server.port, server.log, server)
 	}
 
 	go server.statusAPI.Start()
@@ -193,8 +193,6 @@ func (server *CloudConnector) ConnectedDevices() []string {
 	return server.connectionsHandler.Stats().ConnectedDevices()
 }
 
-// Devices []string `json:"devices"`
-
 /*
 IncomingMessages How many incoming messages were processed by a Device or globally if deviceID is empty
 */
@@ -215,6 +213,20 @@ func (server *CloudConnector) OutgoingMessages(deviceID string) uint {
 	}
 
 	return server.connectionsHandler.Stats().OutgoingMessages(deviceID)
+}
+
+/*
+SendACommand TODO
+*/
+func (server *CloudConnector) SendCommand(payload, deviceID string) (string, int, error) {
+	return server.connectionsHandler.SendCommand(payload, deviceID)
+}
+
+/*
+SendQuery TODO
+*/
+func (server *CloudConnector) SendQuery(payload, deviceID string) (string, int, error) {
+	return server.connectionsHandler.SendQuery(payload, deviceID)
 }
 
 /*
@@ -266,4 +278,12 @@ Kill Begins shutdown procedure
 */
 func (server *CloudConnector) Kill() {
 	server.serverShutdownWaitGroup.Done()
+}
+
+func (server *CloudConnector) QueriesWaiting() uint {
+	return server.connectionsHandler.QueriesWaiting()
+}
+
+func (server *CloudConnector) CommandsWaiting() uint {
+	return server.connectionsHandler.CommandsWaiting()
 }
