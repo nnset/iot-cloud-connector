@@ -33,47 +33,48 @@ of our sample connections handlers (SampleWebSocketsHandler)
 package main
 
 import (
-	"fmt"
-	"os"
+    "fmt"
+    "os"
 
-	"github.com/nnset/iot-cloud-connector/connectionshandlers"
-	"github.com/nnset/iot-cloud-connector/servers"
-	"github.com/sirupsen/logrus"
+    "github.com/nnset/iot-cloud-connector/connectionshandlers"
+    "github.com/nnset/iot-cloud-connector/servers"
+    "github.com/nnset/iot-cloud-connector/storage"
+    "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log := createLogger()
+    log := createLogger()
 
     // IoT devices will connect to localhost:8080
-	connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
-		"localhost", "8080", "tcp", "", "",
-	)
+    connectionsHandler := connectionshandlers.NewSampleWebSocketsHandler(
+        "localhost", "8080", "tcp", "", "",
+    )
 
     // A default REST API will be available at localhost:9090
-	s := servers.NewCloudConnector(
-		"localhost", "9090", "tcp", log, connectionsHandler, nil,
-	)
+    s := servers.NewCloudConnector(
+        "localhost", "9090", "tcp", log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil,
+    )
 
-	s.Start()  // Blocks flow until server is shutdown via an os.signal
+    s.Start()  // Blocks flow until server shutdowns via an os.signal (syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
-	os.Exit(0)
+    os.Exit(0)
 }
 
 func createLogger() *logrus.Logger {
-	var log = logrus.New()
+    var log = logrus.New()
 
-	log.SetLevel(logrus.DebugLevel)
-	log.Out = os.Stderr
+    log.SetLevel(logrus.DebugLevel)
+    log.Out = os.Stderr
 
-	file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+    file, err := os.OpenFile("../var/log/sockets.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 
-	if err == nil {
-		log.Out = file
-	} else {
-		fmt.Println("Using stdErr for log")
-	}
+    if err == nil {
+        log.Out = file
+    } else {
+        fmt.Println("Using stdErr for log")
+    }
 
-	return log
+    return log
 }
 
 ```
@@ -130,16 +131,17 @@ Lets talk about the basic structs.
 
 ```go
 type CloudConnector struct {
-	id                 string
-	address            string
-	port               string
-	network            string
-	startTime          int64
-	log                *logrus.Logger
-	serverShutdown     chan bool
-	connectionsHandler connectionshandlers.ConnectionsHandlerInterface
-    api                CloudConnectorAPIInterface
-	state              CloudConnectorState
+    id                      string
+    address                 string
+    port                    string
+    network                 string
+    startTime               int64
+    log                     *logrus.Logger
+    serverShutdownWaitGroup sync.WaitGroup
+    connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
+    statusAPI               CloudConnectorAPIInterface
+    state                   CloudConnectorState
+    connectionsStats        storage.DeviceConnectionsStatsStorageInterface
 }
 ```
 
@@ -150,8 +152,11 @@ Starts all functional layers:
 * ConnectionsHandler (Your business logic)
 * CloudConnectorAPI (Your own or a default one)
 
-Handles service shutdown when a os.signal is send to stop the process.
-CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is enforced.
+Handles:
+
+* Server shutdown when a os.signal is sent to stop the process. CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is enforced.
+* Holds Connections stats (via an instance of storage.DeviceConnectionsStatsStorageInterface)
+* Start REST API server and supports it making connection stats data available to it.
 
 **How to instantiate it**
 
@@ -162,7 +167,7 @@ In order to instantiate it, you can use its named constructor and call *Start()*
     // Init log and connectionsHandler before.
 
     connector := servers.NewCloudConnector(
-        "localhost", "9090", "tcp", log, connectionsHandler, nil
+        "localhost", "9090", "tcp", log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil,
     )
 
     connector.Start()  // Blocks flow until a kill signal is sent to the process
@@ -204,12 +209,12 @@ kind of business rules you need to manage your IoT devices.
 
 ```go
 type ConnectionsHandlerInterface interface {
-	Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, log *logrus.Logger) error
-	Stats() storage.DeviceConnectionsStatsStorageInterface
-	SendCommand(payload, deviceID string) (string, int, error)
-	SendQuery(payload, deviceID string) (string, int, error)
-	QueriesWaiting() uint
-	CommandsWaiting() uint
+    Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
+    Stats() storage.DeviceConnectionsStatsStorageInterface
+    SendCommand(payload, deviceID string) (string, int, error)
+    SendQuery(payload, deviceID string) (string, int, error)
+    QueriesWaiting() uint
+    CommandsWaiting() uint
 }
 ```
 
