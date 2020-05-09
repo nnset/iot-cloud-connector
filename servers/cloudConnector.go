@@ -83,90 +83,90 @@ func NewCloudConnector(
 /*
 Start Starts the server on the given host and port
 */
-func (server *CloudConnector) Start() {
-	server.log.Debugf("Starting CloudConnector #%s at %s:%s", server.id, server.address, server.port)
+func (cc *CloudConnector) Start() {
+	cc.log.Debugf("Starting CloudConnector #%s at %s:%s", cc.id, cc.address, cc.port)
 
 	connectionsHandlerShutdownIsComplete, shutdownConnectionsHandler := make(chan bool), make(chan bool)
 
-	server.serverShutdownWaitGroup.Add(1)
-	go server.waitForShutdownSignal()
+	cc.serverShutdownWaitGroup.Add(1)
+	go cc.waitForShutdownSignal()
 
-	go server.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, server.connectionsStats, server.log)
+	go cc.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.connectionsStats, cc.log)
 
-	server.startAPI()
+	cc.startAPI()
 
-	server.state = CloudConnectorStarted
+	cc.state = CloudConnectorStarted
 
-	server.serverShutdownWaitGroup.Wait()
+	cc.serverShutdownWaitGroup.Wait()
 
-	server.log.Info("CloudConnector received shutdown signal")
+	cc.log.Info("CloudConnector received shutdown signal")
 
-	server.shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete)
+	cc.shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete)
 }
 
-func (server *CloudConnector) waitForShutdownSignal() {
+func (cc *CloudConnector) waitForShutdownSignal() {
 	operatingSystemSignal := make(chan os.Signal)
 
 	signal.Notify(operatingSystemSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 	go func() {
 		sig := <-operatingSystemSignal
-		server.log.Debugf("Signal received : %s", sig)
-		server.log.Debug("Shutting down main")
+		cc.log.Debugf("Signal received : %s", sig)
+		cc.log.Debug("Shutting down main")
 
-		server.serverShutdownWaitGroup.Done()
+		cc.serverShutdownWaitGroup.Done()
 	}()
 }
 
-func (server *CloudConnector) startAPI() {
-	if server.statusAPI == nil {
-		server.statusAPI = NewDefaultCloudConnectorAPI(server.address, server.port, server.log, server)
+func (cc *CloudConnector) startAPI() {
+	if cc.statusAPI == nil {
+		cc.statusAPI = NewDefaultCloudConnectorAPI(cc.address, cc.port, cc.log, cc)
 	}
 
-	go server.statusAPI.Start()
+	go cc.statusAPI.Start()
 }
 
-func (server *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete chan bool) {
+func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete chan bool) {
 	shutdownConnectionsHandler <- true
 
 	select {
 	case <-connectionsHandlerShutdownIsComplete:
-		server.log.Debug("Connections handler successfully shutdown")
+		cc.log.Debug("Connections handler successfully shutdown")
 	case <-time.After(8 * time.Second):
-		server.log.Error("Connections handler shutdown time out")
+		cc.log.Error("Connections handler shutdown time out")
 	}
 
-	server.statusAPI.Stop()
+	cc.statusAPI.Stop()
 
-	server.state = CloudConnectorStopped
+	cc.state = CloudConnectorStopped
 
-	server.log.Info("CloudConnector stopped.")
-	server.log.Info("  Total incoming messages processed: ", server.connectionsStats.TotalIncomingMessages())
-	server.log.Info("  Total outgoing messages processed: ", server.connectionsStats.TotalOutgoingMessages())
-	server.log.Infof("  Uptime: %d seconds", server.Uptime(""))
+	cc.log.Info("CloudConnector stopped.")
+	cc.log.Info("  Total incoming messages processed: ", cc.connectionsStats.TotalIncomingMessages())
+	cc.log.Info("  Total outgoing messages processed: ", cc.connectionsStats.TotalOutgoingMessages())
+	cc.log.Infof("  Uptime: %d seconds", cc.Uptime(""))
 }
 
 /*
 ID Server's uuid
 */
-func (server *CloudConnector) ID() string {
-	return server.id
+func (cc *CloudConnector) ID() string {
+	return cc.id
 }
 
 /*
 Uptime how many seconds the server has been up
 */
-func (server *CloudConnector) Uptime(deviceID string) int64 {
+func (cc *CloudConnector) Uptime(deviceID string) int64 {
 
 	if deviceID == "" {
-		if server.startTime == 0 {
+		if cc.startTime == 0 {
 			return 0
 		}
 
-		return time.Now().Unix() - server.startTime
+		return time.Now().Unix() - cc.startTime
 	}
 
-	connection, err := server.connectionsStats.Get(deviceID)
+	connection, err := cc.connectionsStats.Get(deviceID)
 
 	if err != nil {
 		// TODO should we return error or just 0 ?
@@ -186,57 +186,57 @@ func (server *CloudConnector) Uptime(deviceID string) int64 {
 /*
 OpenConnections How many connections are currently open on this server
 */
-func (server *CloudConnector) OpenConnections() uint {
-	return server.connectionsStats.OpenConnections()
+func (cc *CloudConnector) OpenConnections() uint {
+	return cc.connectionsStats.OpenConnections()
 }
 
 /*
 ConnectedDevices Which devices are currently connected
 */
-func (server *CloudConnector) ConnectedDevices() []string {
-	return server.connectionsStats.ConnectedDevices()
+func (cc *CloudConnector) ConnectedDevices() []string {
+	return cc.connectionsStats.ConnectedDevices()
 }
 
 /*
 IncomingMessages How many incoming messages were processed by a Device or globally if deviceID is empty
 */
-func (server *CloudConnector) IncomingMessages(deviceID string) uint {
+func (cc *CloudConnector) IncomingMessages(deviceID string) uint {
 	if deviceID == "" {
-		return server.connectionsStats.TotalIncomingMessages()
+		return cc.connectionsStats.TotalIncomingMessages()
 	}
 
-	return server.connectionsStats.IncomingMessages(deviceID)
+	return cc.connectionsStats.IncomingMessages(deviceID)
 }
 
 /*
 OutgoingMessages How many messages this server sent to a Device or globally if deviceID is empty
 */
-func (server *CloudConnector) OutgoingMessages(deviceID string) uint {
+func (cc *CloudConnector) OutgoingMessages(deviceID string) uint {
 	if deviceID == "" {
-		return server.connectionsStats.TotalOutgoingMessages()
+		return cc.connectionsStats.TotalOutgoingMessages()
 	}
 
-	return server.connectionsStats.OutgoingMessages(deviceID)
+	return cc.connectionsStats.OutgoingMessages(deviceID)
 }
 
 /*
 SendACommand TODO
 */
-func (server *CloudConnector) SendCommand(payload, deviceID string) (string, int, error) {
-	return server.connectionsHandler.SendCommand(payload, deviceID)
+func (cc *CloudConnector) SendCommand(payload, deviceID string) (string, int, error) {
+	return cc.connectionsHandler.SendCommand(payload, deviceID)
 }
 
 /*
 SendQuery TODO
 */
-func (server *CloudConnector) SendQuery(payload, deviceID string) (string, int, error) {
-	return server.connectionsHandler.SendQuery(payload, deviceID)
+func (cc *CloudConnector) SendQuery(payload, deviceID string) (string, int, error) {
+	return cc.connectionsHandler.SendQuery(payload, deviceID)
 }
 
 /*
 SystemMemory total mega bytes of memory obtained from the OS.
 */
-func (server *CloudConnector) SystemMemory() uint {
+func (cc *CloudConnector) SystemMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -246,7 +246,7 @@ func (server *CloudConnector) SystemMemory() uint {
 /*
 AllocatedMemory mega bytes allocated for heap objects.
 */
-func (server *CloudConnector) AllocatedMemory() uint {
+func (cc *CloudConnector) AllocatedMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -256,7 +256,7 @@ func (server *CloudConnector) AllocatedMemory() uint {
 /*
 HeapAllocatedMemory mega bytes of allocated heap objects.
 */
-func (server *CloudConnector) HeapAllocatedMemory() uint {
+func (cc *CloudConnector) HeapAllocatedMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -266,28 +266,28 @@ func (server *CloudConnector) HeapAllocatedMemory() uint {
 /*
 GoRoutinesSpawned How many Go routines are currently being executed
 */
-func (server *CloudConnector) GoRoutinesSpawned() int {
+func (cc *CloudConnector) GoRoutinesSpawned() int {
 	return runtime.NumGoroutine()
 }
 
 /*
 State CloudConnector current state
 */
-func (server *CloudConnector) State() CloudConnectorState {
-	return server.state
+func (cc *CloudConnector) State() CloudConnectorState {
+	return cc.state
 }
 
 /*
 Kill Begins shutdown procedure
 */
-func (server *CloudConnector) Kill() {
-	server.serverShutdownWaitGroup.Done()
+func (cc *CloudConnector) Kill() {
+	cc.serverShutdownWaitGroup.Done()
 }
 
-func (server *CloudConnector) QueriesWaiting() uint {
-	return server.connectionsHandler.QueriesWaiting()
+func (cc *CloudConnector) QueriesWaiting() uint {
+	return cc.connectionsHandler.QueriesWaiting()
 }
 
-func (server *CloudConnector) CommandsWaiting() uint {
-	return server.connectionsHandler.CommandsWaiting()
+func (cc *CloudConnector) CommandsWaiting() uint {
+	return cc.connectionsHandler.CommandsWaiting()
 }
