@@ -51,13 +51,20 @@ func main() {
     )
 
     // A default REST API will be available at localhost:9090
+    // with no authorization required.
+    // Check servers.authentication.go for more build in authentication methods
+    defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{})
+
     s := servers.NewCloudConnector(
-        "localhost", "9090", "tcp", log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil,
+        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), defaultAPI,
     )
 
-    s.Start()  // Blocks flow until server shutdowns via an os.signal (syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+    s.Start()
+
+    log.Debug("Finished shutdown")
 
     os.Exit(0)
+
 }
 
 func createLogger() *logrus.Logger {
@@ -131,17 +138,18 @@ Lets talk about the basic structs.
 
 ```go
 type CloudConnector struct {
-    id                      string
-    address                 string
-    port                    string
-    network                 string
-    startTime               int64
-    log                     *logrus.Logger
-    serverShutdownWaitGroup sync.WaitGroup
-    connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
-    statusAPI               CloudConnectorAPIInterface
-    state                   CloudConnectorState
-    connectionsStats        storage.DeviceConnectionsStatsStorageInterface
+	id                      string
+	address                 string
+	port                    string
+	network                 string
+	startTime               int64
+	log                     *logrus.Logger
+	serverShutdownWaitGroup sync.WaitGroup
+	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
+	statusAPI               CloudConnectorAPIInterface
+	state                   CloudConnectorState
+	connectionsStats        storage.DeviceConnectionsStatsStorageInterface
+	auth                    APIAuthMiddleWare
 }
 ```
 
@@ -164,10 +172,10 @@ In order to instantiate it, you can use its named constructor and call *Start()*
 
 ```go
 
-    // Init log and connectionsHandler before.
+    // Init log, connectionsHandler and defaultAPI before.
 
     connector := servers.NewCloudConnector(
-        "localhost", "9090", "tcp", log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil,
+        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), defaultAPI,
     )
 
     connector.Start()  // Blocks flow until a kill signal is sent to the process
@@ -210,7 +218,6 @@ kind of business rules you need to manage your IoT devices.
 ```go
 type ConnectionsHandlerInterface interface {
     Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
-    Stats() storage.DeviceConnectionsStatsStorageInterface
     SendCommand(payload, deviceID string) (string, int, error)
     SendQuery(payload, deviceID string) (string, int, error)
     QueriesWaiting() uint
@@ -241,6 +248,8 @@ connector status and current connections.
 However you may want to offer your own API, thats fine just implement this interface and pass the instance
 to Cloud Connector.
 
+For authentication methods, we provide some options compatible with 
+the Default API. Check [authentication.go](servers/authentication.go).
 
 ### Connections Handlers samples
 

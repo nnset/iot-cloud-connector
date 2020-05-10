@@ -37,6 +37,7 @@ type CloudConnector struct {
 	statusAPI               CloudConnectorAPIInterface
 	state                   CloudConnectorState
 	connectionsStats        storage.DeviceConnectionsStatsStorageInterface
+	auth                    APIAuthMiddleWare
 }
 
 /*
@@ -60,16 +61,12 @@ const (
 NewCloudConnector Creates a new instance of CloudConnector
 */
 func NewCloudConnector(
-	address, port, network string,
 	log *logrus.Logger,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
 	connectionsStats storage.DeviceConnectionsStatsStorageInterface,
 	statusAPI CloudConnectorAPIInterface) *CloudConnector {
 	return &CloudConnector{
 		id:                      uuid.New().String(),
-		address:                 address,
-		port:                    port,
-		network:                 network,
 		log:                     log,
 		serverShutdownWaitGroup: sync.WaitGroup{},
 		connectionsHandler:      connectionsHandler,
@@ -84,7 +81,7 @@ func NewCloudConnector(
 Start Starts the server on the given host and port
 */
 func (cc *CloudConnector) Start() {
-	cc.log.Debugf("Starting CloudConnector #%s at %s:%s", cc.id, cc.address, cc.port)
+	cc.log.Debugf("Starting CloudConnector #%s", cc.id)
 
 	connectionsHandlerShutdownIsComplete, shutdownConnectionsHandler := make(chan bool), make(chan bool)
 
@@ -93,7 +90,9 @@ func (cc *CloudConnector) Start() {
 
 	go cc.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.connectionsStats, cc.log)
 
-	cc.startAPI()
+	if cc.statusAPI != nil {
+		go cc.statusAPI.Start(cc)
+	}
 
 	cc.state = CloudConnectorStarted
 
@@ -118,14 +117,6 @@ func (cc *CloudConnector) waitForShutdownSignal() {
 	}()
 }
 
-func (cc *CloudConnector) startAPI() {
-	if cc.statusAPI == nil {
-		cc.statusAPI = NewDefaultCloudConnectorAPI(cc.address, cc.port, cc.log, cc)
-	}
-
-	go cc.statusAPI.Start()
-}
-
 func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete chan bool) {
 	shutdownConnectionsHandler <- true
 
@@ -136,7 +127,9 @@ func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandle
 		cc.log.Error("Connections handler shutdown time out")
 	}
 
-	cc.statusAPI.Stop()
+	if cc.statusAPI != nil {
+		cc.statusAPI.Stop()
+	}
 
 	cc.state = CloudConnectorStopped
 

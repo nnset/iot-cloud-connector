@@ -4,6 +4,6 @@ package servers
 CloudConnectorAPIInterface
 */
 type CloudConnectorAPIInterface interface {
-	Start() error
+	Start(cloudConnector *CloudConnector) error
 	Stop()
 }

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -20,27 +20,31 @@ IoT devices
 type DefaultCloudConnectorAPI struct {
 	address        string
 	port           string
-	log            *logrus.Logger
 	cloudConnector *CloudConnector
 	httpServer     *http.Server
+	auth           APIAuthMiddleWare
 }
 
 /*
 NewDefaultCloudConnectorAPI Creates a new API server
 */
-func NewDefaultCloudConnectorAPI(address, port string, log *logrus.Logger, cloudConnector *CloudConnector) *DefaultCloudConnectorAPI {
+func NewDefaultCloudConnectorAPI(address, port string, auth APIAuthMiddleWare) *DefaultCloudConnectorAPI {
 	return &DefaultCloudConnectorAPI{
-		address:        address,
-		port:           port,
-		log:            log,
-		cloudConnector: cloudConnector,
+		address: address,
+		port:    port,
+		auth:    auth,
 	}
 }
 
 /*
 Start Starts the API server on the configured port
 */
-func (api *DefaultCloudConnectorAPI) Start() error {
+func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error {
+	if cloudConnector == nil {
+		return errors.New("Missing Cloud Connector required instance")
+	}
+
+	api.cloudConnector = cloudConnector
 	api.cloudConnector.log.Debugf("Starting Default REST API")
 
 	listenAddr := fmt.Sprintf("%s:%s", api.address, api.port)
@@ -73,6 +77,8 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router.HandleFunc("/devices", api.devicesList).Methods("GET")
 	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods("POST")
 	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods("POST")
+
+	router.Use(api.auth.Middleware)
 
 	return router
 }
@@ -391,7 +397,7 @@ Stop Stops the API server
 @see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
 */
 func (api *DefaultCloudConnectorAPI) Stop() {
-	api.log.Debug("Shutting down defaultCloudConnectorAPI")
+	api.cloudConnector.log.Debug("Shutting down defaultCloudConnectorAPI")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -399,8 +405,8 @@ func (api *DefaultCloudConnectorAPI) Stop() {
 	api.httpServer.SetKeepAlivesEnabled(false)
 
 	if err := api.httpServer.Shutdown(ctx); err != nil {
-		api.log.Fatalf("Could not gracefully shutdown defaultCloudConnectorAPI http server %v\n", err)
+		api.cloudConnector.log.Fatalf("Could not gracefully shutdown defaultCloudConnectorAPI http server %v\n", err)
 	} else {
-		api.log.Debug("defaultCloudConnectorAPI is shutdown")
+		api.cloudConnector.log.Debug("defaultCloudConnectorAPI is shutdown")
 	}
 }
