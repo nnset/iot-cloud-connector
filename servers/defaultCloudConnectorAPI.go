@@ -69,7 +69,6 @@ func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error
 }
 
 func (api *DefaultCloudConnectorAPI) router() *mux.Router {
-	// TODO does mux have a middleware in order to perform auth ?
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/cloud-connector/status", api.status).Methods("GET")
