@@ -20,6 +20,9 @@ import (
 // - {GET} /devices
 // - {POST} /devices/command/{deviceID}
 // - {POST} /devices/query/{deviceID}
+//
+// Read API docs at /docs/default-cloud-connector-api.md
+//
 type DefaultCloudConnectorAPI struct {
 	address        string
 	port           string
@@ -96,43 +99,6 @@ func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
 	)
 }
 
-/**
- * @api {get} /cloud-connector/status Cloud Connector status
- * @apiName ServerStatus
- * @apiDescription Stats and status from this Cloud Connector instance
- * @apiGroup Status
- *
- * @apiSuccess {string=created, started, stopped} server_current_state Server's current state
- * @apiSuccess {Integer} connections How many connections are currently open.
- * @apiSuccess {Integer} uptime Server uptime in seconds.
- * @apiSuccess {Integer} incoming_messages How may messages the server received.
- * @apiSuccess {Integer} incoming_messages_per_second How may messages the server is receiving per second.
- * @apiSuccess {Integer} outgoing_messages How may messages the server sent to the connected clients.
- * @apiSuccess {Integer} outgoing_messages_per_second How may messages the server is sending per second.
- * @apiSuccess {Integer} commands_waiting How many commands to devices are currently waiting feedback from the device.
- * @apiSuccess {Integer} queries_waiting How many queries to devices are currently waiting device's response.
- * @apiSuccess {Integer} go_routines How may Go routines are current spawned.
- * @apiSuccess {Integer} system_memory Total mega bytes of memory obtained from the OS.
- * @apiSuccess {Integer} allocated_memory Mega bytes allocated for heap objects.
- * @apiSuccess {Integer} heap_allocated_memory Mega bytes of allocated heap objects.
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "server_current_state": string,
- *       "connections" : int,
- *       "uptime": int,
- *       "incoming_messages": int,
- *       "incoming_messages_per_second": int,
- *       "outgoing_messages": int,
- *       "outgoing_messages_per_second": int,
- *       "commands_waiting": int,
- *       "queries_waiting": int,
- *       "go_routines": int,
- *       "system_memory": int,
- *       "allocated_memory": int
- *     }
- */
 func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Request) {
 	api.restAPIHeaders(w, http.StatusOK)
 
@@ -159,39 +125,6 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 	)
 }
 
-/**
- * @api {get} /devices/status/:deviceID Device status
- * @apiName DeviceStatus
- * @apiDescription Stats and status from a Device connection to the server
- * @apiGroup Devices
- *
- * @apiParam {String} deviceID Device's unique identifier
- *
- * @apiSuccess {Integer} uptime Device connection uptime in seconds.
- * @apiSuccess {Integer} incoming_messages How may messages the device sent to the server.
- * @apiSuccess {Integer} incoming_messages_per_second How many messages the device is sending to the server per second.
- * @apiSuccess {Integer} outgoing_messages How may messages the device received from the server.
- * @apiSuccess {Integer} outgoing_messages_per_second How may messages the device is receiving from the server per second.
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "uptime": int,
- *       "incoming_messages": int,
- *       "incoming_messages_per_second": int,
- *       "outgoing_messages": int,
- *       "outgoing_messages_per_second": int
- *     }
- *
- * @apiError DeviceNotFound The <code>deviceID</code> of the Device was not found.
- *
- * @apiErrorExample {json} Error-Response:
- *     HTTP/1.1 404 Not Found
- *     {
- *       "error": "Device not found"
- *     }
- *
- */
 func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	incomingMessages := api.cloudConnector.ReceivedMessages(vars["deviceID"])
@@ -218,22 +151,6 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
 	)
 }
 
-/**
- * @api {get} /devices Connected devices
- * @apiName DeviceStatus
- * @apiDescription A list of all connected devices
- * @apiGroup Devices
- *
- * @apiSuccess {String[]} devices Connected Devices IDs
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *        "devices": [
- *          "device_id_1", "device_id_2"
- *        ]
- *     }
- */
 func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.Request) {
 	api.restAPIHeaders(w, http.StatusOK)
 
@@ -247,43 +164,6 @@ func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.
 	)
 }
 
-/**
- * @api {post} /devices/command/:deviceID
- * @apiName DeviceCommand
- * @apiDescription Send a command to a connected device. Sumbitted content will be forwarded to the device.
- * @apiGroup Devices
- *
- * @apiParam {string} payload
- *
- * @apiSuccess {String="OK",""} response
- * @apiSuccess {String} errors
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *        "response": "string",
- *        "errors": ""
- *     }
- *
- * @apiError DeviceNotFound Device with <code>deviceID</code> is not connected.
- *
- * @apiErrorExample {json} Error-Response:
- *     HTTP/1.1 404 Not Found
- *     {
- *       "response": ""
- *       "errors": "Device :deviceID is not connected"
- *     }
- *
- * @apiError DeviceTimeout Command to Device timed out
- *
- * @apiErrorExample {json} Error-Response:
- *     HTTP/1.1 408 Time Out
- *     {
- *       "response": ""
- *       "errors": "Device command timeout"
- *     }
- *
- */
 func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -292,43 +172,6 @@ func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.
 	api.responseFromDevice(w, commandResponse, responseCode, err)
 }
 
-/**
- * @api {post} /devices/query/:deviceID
- * @apiName DeviceQuery
- * @apiDescription Send a query to a connected device. Sumbitted content will be forwarded to the device.
- * @apiGroup Devices
- *
- * @apiParam {string} payload
- *
- * @apiSuccess {String} response Device's response to the query
- * @apiSuccess {String} errors
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *        "response": "string",
- *        "errors": ""
- *     }
- *
- * @apiError DeviceNotFound Device with <code>deviceID</code> is not connected.
- *
- * @apiErrorExample {json} Error-Response:
- *     HTTP/1.1 404 Not Found
- *     {
- *       "response": ""
- *       "errors": "Device :deviceID is not connected"
- *     }
- *
- * @apiError DeviceTimeout Query to Device timed out
- *
- * @apiErrorExample {json} Error-Response:
- *     HTTP/1.1 408 Time Out
- *     {
- *       "response": ""
- *       "errors": "Device query timeout"
- *     }
- *
- */
 func (api *DefaultCloudConnectorAPI) sendQuery(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 

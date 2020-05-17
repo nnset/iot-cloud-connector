@@ -24,6 +24,8 @@ code your own business logic using [Go](https://golang.org/).
 
 If you have a strong Go or software development background, you may skip the rest and go to [how to write your own logic](#how-to-write-your-own-business-logic).
 
+Also check our **default REST API** for Cloud Connector. [Documentation available here](/docs/default-cloud-connector-api.md).
+
 ### Quick example
 
 Now you can start using IoT Cloud Connector, here's an example of main function, using one 
@@ -158,7 +160,7 @@ type CloudConnector struct {
 Starts all functional layers:
 
 * ConnectionsHandler (Your business logic)
-* CloudConnectorAPI (Your own or a default one)
+* CloudConnectorAPI (Your own or a [default one](/docs/default-cloud-connector-api.md))
 
 Handles:
 
@@ -250,6 +252,8 @@ to Cloud Connector.
 
 For authentication methods, we provide some options compatible with 
 the Default API. Check [authentication.go](servers/authentication.go).
+
+We provide a default REST API for Cloud Connector check the [documentation here](/docs/default-cloud-connector-api.md).
 
 ### Connections Handlers samples
 
