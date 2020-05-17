@@ -80,7 +80,7 @@ func (cc *CloudConnector) Start() {
 	cc.serverShutdownWaitGroup.Add(1)
 	go cc.waitForShutdownSignal()
 
-	go cc.connectionsHandler.Listen(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.connectionsStats, cc.log)
+	go cc.connectionsHandler.Start(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.connectionsStats, cc.log)
 
 	if cc.statusAPI != nil {
 		go cc.statusAPI.Start(cc)

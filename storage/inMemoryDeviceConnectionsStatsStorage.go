@@ -8,8 +8,7 @@ import (
 	"github.com/nnset/iot-cloud-connector/connections"
 )
 
-// InMemoryDeviceConnectionsStatsStorage Concurrency safe in memory implementation of
-// DeviceConnectionsStorageInterface
+// InMemoryDeviceConnectionsStatsStorage Thread safe in memory implementation, of DeviceConnectionsStorageInterface
 type InMemoryDeviceConnectionsStatsStorage struct {
 	id                    string
 	activeConnections     map[string]*connections.DeviceConnectionStats

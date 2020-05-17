@@ -217,7 +217,7 @@ kind of business rules you need to manage your IoT devices.
 
 ```go
 type ConnectionsHandlerInterface interface {
-    Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
+    Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
     SendCommand(payload, deviceID string) (string, int, error)
     SendQuery(payload, deviceID string) (string, int, error)
     QueriesWaiting() uint
@@ -225,7 +225,7 @@ type ConnectionsHandlerInterface interface {
 }
 ```
 
-On Listen method these two channels are important:
+On Start method these two channels are important:
 
 | Name | Description |
 | ------------- | ------------- |

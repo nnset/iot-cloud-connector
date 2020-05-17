@@ -36,7 +36,7 @@ type dummyConnectionsHandler struct {
 	connectionsStats storage.DeviceConnectionsStatsStorageInterface
 }
 
-func (d *dummyConnectionsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
+func (d *dummyConnectionsHandler) Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
 	return nil
 }
 

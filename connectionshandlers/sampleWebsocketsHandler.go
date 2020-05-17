@@ -66,7 +66,7 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 /*
 Listen TODO
 */
-func (handler *SampleWebSocketsHandler) Listen(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
+func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
 	handler.log = log
 	handler.connectionsStats = connectionsStats
 
