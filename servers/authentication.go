@@ -4,21 +4,21 @@ import (
 	"net/http"
 )
 
-/*
-APIAuthMiddleWare TODO
-*/
+// APIAuthMiddleWare Use this interface to code how REST API requests
+// should be authenticated.
+// This interface is compatible with Gorilla Mux Router (http://www.gorillatoolkit.org/pkg/mux).
 type APIAuthMiddleWare interface {
 	Middleware(next http.Handler) http.Handler
 }
 
-/*
-APIStaticBasicAuthenticationMiddleware TODO
-*/
+// APIStaticBasicAuthenticationMiddleware Authenticate REST API requests with a unique
+// username and password combination.
 type APIStaticBasicAuthenticationMiddleware struct {
 	Username string
 	Password string
 }
 
+// Middleware Gorilla Mux Router middleware method for APIStaticBasicAuthenticationMiddleware
 func (ba *APIStaticBasicAuthenticationMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -35,12 +35,11 @@ func (ba *APIStaticBasicAuthenticationMiddleware) Middleware(next http.Handler) 
 	})
 }
 
-/*
-APINoAuthenticationMiddleware TODO
-*/
+// APINoAuthenticationMiddleware No authentication required for API REST requests.
 type APINoAuthenticationMiddleware struct {
 }
 
+// Middleware Gorilla Mux Router middleware method for APINoAuthenticationMiddleware
 func (na *APINoAuthenticationMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)

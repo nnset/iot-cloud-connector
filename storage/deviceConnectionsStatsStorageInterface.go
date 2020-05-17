@@ -4,9 +4,8 @@ import (
 	"github.com/nnset/iot-cloud-connector/connections"
 )
 
-/*
-DeviceConnectionsStatsStorageInterface DeviceConnections status information storage interface
-*/
+// DeviceConnectionsStatsStorageInterface Defines how DeviceConnectionStats should be stored.
+// We provide a thread safe in memory implementation.
 type DeviceConnectionsStatsStorageInterface interface {
 	Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error
 
@@ -14,14 +13,14 @@ type DeviceConnectionsStatsStorageInterface interface {
 
 	Get(deviceID string) (connections.DeviceConnectionStats, error)
 
-	IncomingMessageReceived(deviceID string) error // Updates incoming messages count
-	OutgoingMessageSent(deviceID string) error     // Updates outgoing messages count
+	MessageWasReceived(deviceID string) error
+	MessageWasSent(deviceID string) error
 
-	IncomingMessages(deviceID string) uint
-	OutgoingMessages(deviceID string) uint
+	SentMessages(deviceID string) uint
+	ReceivedMessages(deviceID string) uint
 
-	TotalIncomingMessages() uint
-	TotalOutgoingMessages() uint
+	TotalReceivedMessages() uint
+	TotalSentMessages() uint
 
 	IsDeviceConnected(deviceID string) bool
 	OpenConnections() uint

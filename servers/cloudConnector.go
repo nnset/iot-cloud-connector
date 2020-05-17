@@ -14,17 +14,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-/*
-CloudConnector is the main process, once you Start() it, these processes are spawned :
-
-	- An instance of connectionshandlers.ConnectionsHandlerInterface
-		This is the instance you coded, there you handle your connections and business logic.
-		Check connectionshandlers/sample*.go files for some examples.
-
-	- An instance of CloudConnectorAPIInterface
-		This opens a http/s server serving a JSON API where you can fetch the status of your connected
-		devices and interact with them in case you need it (this is still a TODO).
-*/
+// CloudConnector is the main process, once you Start() it, these processes are spawned :
+//  - An instance of connectionshandlers.ConnectionsHandlerInterface
+//  - An instance of CloudConnectorAPIInterface
+//
+// CloudConnector attempts a graceful shutdown (closing all connections) when any of
+// these signals are received:
+//  - syscall.SIGINT
+//  - syscall.SIGTERM
+//  - syscall.SIGKILL
 type CloudConnector struct {
 	id                      string
 	address                 string
@@ -40,26 +38,20 @@ type CloudConnector struct {
 	auth                    APIAuthMiddleWare
 }
 
-/*
-CloudConnectorState Server's state
-*/
+// CloudConnectorState Server's state
 type CloudConnectorState string
 
-/*
-	CloudConnectors go across some status :
-	- CloudConnectorCreated
-	- CloudConnectorStarted
-	- CloudConnectorStopped
-*/
+// CloudConnectors go across some status:
+//   - CloudConnectorCreated
+//   - CloudConnectorStarted
+//   - CloudConnectorStopped
 const (
 	CloudConnectorCreated CloudConnectorState = "created"
 	CloudConnectorStarted CloudConnectorState = "started"
 	CloudConnectorStopped CloudConnectorState = "stopped"
 )
 
-/*
-NewCloudConnector Creates a new instance of CloudConnector
-*/
+// NewCloudConnector Creates a new instance of CloudConnector
 func NewCloudConnector(
 	log *logrus.Logger,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
@@ -77,9 +69,9 @@ func NewCloudConnector(
 	}
 }
 
-/*
-Start Starts the server on the given host and port
-*/
+// Start Starts ClodConnector and its child processes, currently:
+//  - An instance of connectionshandlers.ConnectionsHandlerInterface via its Listen() method.
+//  - An instance of CloudConnectorAPIInterface via its Start() method.
 func (cc *CloudConnector) Start() {
 	cc.log.Debugf("Starting CloudConnector #%s", cc.id)
 
@@ -134,21 +126,17 @@ func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandle
 	cc.state = CloudConnectorStopped
 
 	cc.log.Info("CloudConnector stopped.")
-	cc.log.Info("  Total incoming messages processed: ", cc.connectionsStats.TotalIncomingMessages())
-	cc.log.Info("  Total outgoing messages processed: ", cc.connectionsStats.TotalOutgoingMessages())
+	cc.log.Info("  Total received messages processed: ", cc.connectionsStats.TotalReceivedMessages())
+	cc.log.Info("  Total sent messages processed: ", cc.connectionsStats.TotalSentMessages())
 	cc.log.Infof("  Uptime: %d seconds", cc.Uptime(""))
 }
 
-/*
-ID Server's uuid
-*/
+// ID CloudConnector's uuid
 func (cc *CloudConnector) ID() string {
 	return cc.id
 }
 
-/*
-Uptime how many seconds the server has been up
-*/
+// Uptime how many seconds CloudConnector has been up
 func (cc *CloudConnector) Uptime(deviceID string) int64 {
 
 	if deviceID == "" {
@@ -176,59 +164,48 @@ func (cc *CloudConnector) Uptime(deviceID string) int64 {
 	return uptime
 }
 
-/*
-OpenConnections How many connections are currently open on this server
-*/
+// OpenConnections How many connections are currently open
 func (cc *CloudConnector) OpenConnections() uint {
 	return cc.connectionsStats.OpenConnections()
 }
 
-/*
-ConnectedDevices Which devices are currently connected
-*/
+// ConnectedDevices Which IoT devices (IDs are displayed) are currently connected
 func (cc *CloudConnector) ConnectedDevices() []string {
 	return cc.connectionsStats.ConnectedDevices()
 }
 
-/*
-IncomingMessages How many incoming messages were processed by a Device or globally if deviceID is empty
-*/
-func (cc *CloudConnector) IncomingMessages(deviceID string) uint {
+// ReceivedMessages How many messages were received from a given IoT Device, or if
+// deviceID is empty, globally.
+func (cc *CloudConnector) ReceivedMessages(deviceID string) uint {
 	if deviceID == "" {
-		return cc.connectionsStats.TotalIncomingMessages()
+		return cc.connectionsStats.TotalReceivedMessages()
 	}
 
-	return cc.connectionsStats.IncomingMessages(deviceID)
+	return cc.connectionsStats.ReceivedMessages(deviceID)
 }
 
-/*
-OutgoingMessages How many messages this server sent to a Device or globally if deviceID is empty
-*/
-func (cc *CloudConnector) OutgoingMessages(deviceID string) uint {
+// SentMessages How many messages were sent to a given IoT Device, or if
+// deviceID is empty, globally.
+func (cc *CloudConnector) SentMessages(deviceID string) uint {
 	if deviceID == "" {
-		return cc.connectionsStats.TotalOutgoingMessages()
+		return cc.connectionsStats.TotalSentMessages()
 	}
 
-	return cc.connectionsStats.OutgoingMessages(deviceID)
+	return cc.connectionsStats.SentMessages(deviceID)
 }
 
-/*
-SendACommand TODO
-*/
+// SendCommand Send a command message to a given IoT Device
 func (cc *CloudConnector) SendCommand(payload, deviceID string) (string, int, error) {
 	return cc.connectionsHandler.SendCommand(payload, deviceID)
 }
 
-/*
-SendQuery TODO
-*/
+// SendQuery Send a query message to a given IoT Device
 func (cc *CloudConnector) SendQuery(payload, deviceID string) (string, int, error) {
 	return cc.connectionsHandler.SendQuery(payload, deviceID)
 }
 
-/*
-SystemMemory total mega bytes of memory obtained from the OS.
-*/
+// SystemMemory total mega bytes of memory obtained from the OS by CloudConnector and its
+// child processes
 func (cc *CloudConnector) SystemMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -236,9 +213,8 @@ func (cc *CloudConnector) SystemMemory() uint {
 	return uint(m.Sys / 1024 / 1024)
 }
 
-/*
-AllocatedMemory mega bytes allocated for heap objects.
-*/
+// AllocatedMemory mega bytes allocated for heap objects by CloudConnector and its
+// child processes
 func (cc *CloudConnector) AllocatedMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -246,9 +222,8 @@ func (cc *CloudConnector) AllocatedMemory() uint {
 	return uint(m.Alloc / 1024 / 1024)
 }
 
-/*
-HeapAllocatedMemory mega bytes of allocated heap objects.
-*/
+// HeapAllocatedMemory mega bytes of allocated heap objects by CloudConnector and its
+// child processes
 func (cc *CloudConnector) HeapAllocatedMemory() uint {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -256,31 +231,28 @@ func (cc *CloudConnector) HeapAllocatedMemory() uint {
 	return uint(m.HeapAlloc / 1024 / 1024)
 }
 
-/*
-GoRoutinesSpawned How many Go routines are currently being executed
-*/
+// GoRoutinesSpawned How many Go routines are currently being executed by CloudConnector and its
+// child processes
 func (cc *CloudConnector) GoRoutinesSpawned() int {
 	return runtime.NumGoroutine()
 }
 
-/*
-State CloudConnector current state
-*/
+// State CloudConnector current state
 func (cc *CloudConnector) State() CloudConnectorState {
 	return cc.state
 }
 
-/*
-Kill Begins shutdown procedure
-*/
+// Kill Begins shutdown procedure
 func (cc *CloudConnector) Kill() {
 	cc.serverShutdownWaitGroup.Done()
 }
 
+// QueriesWaiting How many query messages are still waiting for the response of the IoT Device
 func (cc *CloudConnector) QueriesWaiting() uint {
 	return cc.connectionsHandler.QueriesWaiting()
 }
 
+// CommandsWaiting How many commands messages are still waiting for the response of the IoT Device
 func (cc *CloudConnector) CommandsWaiting() uint {
 	return cc.connectionsHandler.CommandsWaiting()
 }

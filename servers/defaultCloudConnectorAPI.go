@@ -13,10 +13,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/*
-DefaultCloudConnectorAPI This REST API will let you check stats, status and interact with all your
-IoT devices
-*/
+// DefaultCloudConnectorAPI We provide a simple REST API to interact with CloudConenctor.
+// These are the default available endpoints:
+// - {GET} /cloud-connector/status
+// - {GET} /devices/status/{deviceID}
+// - {GET} /devices
+// - {POST} /devices/command/{deviceID}
+// - {POST} /devices/query/{deviceID}
 type DefaultCloudConnectorAPI struct {
 	address        string
 	port           string
@@ -25,9 +28,7 @@ type DefaultCloudConnectorAPI struct {
 	auth           APIAuthMiddleWare
 }
 
-/*
-NewDefaultCloudConnectorAPI Creates a new API server
-*/
+// NewDefaultCloudConnectorAPI Creates a new DefaultCloudConnectorAPI
 func NewDefaultCloudConnectorAPI(address, port string, auth APIAuthMiddleWare) *DefaultCloudConnectorAPI {
 	return &DefaultCloudConnectorAPI{
 		address: address,
@@ -36,9 +37,8 @@ func NewDefaultCloudConnectorAPI(address, port string, auth APIAuthMiddleWare) *
 	}
 }
 
-/*
-Start Starts the API server on the configured port
-*/
+// Start Starts DefaultCloudConnectorAPI using the configured port.
+// You don't have to invoke this method, CloudConnector will.
 func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error {
 	if cloudConnector == nil {
 		return errors.New("Missing Cloud Connector required instance")
@@ -85,11 +85,6 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 func (api *DefaultCloudConnectorAPI) restAPIHeaders(w http.ResponseWriter, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-}
-
-func (api *DefaultCloudConnectorAPI) authRequest(r *http.Request) error {
-	// TODO security layer
-	return nil
 }
 
 func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
@@ -139,25 +134,20 @@ func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
  *     }
  */
 func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Request) {
-	if api.authRequest(r) != nil {
-		api.unauthorized(w)
-		return
-	}
-
 	api.restAPIHeaders(w, http.StatusOK)
 
-	incomingMessages := api.cloudConnector.IncomingMessages("")
-	outgoingMessages := api.cloudConnector.OutgoingMessages("")
+	incomingMessages := api.cloudConnector.ReceivedMessages("")
+	outgoingMessages := api.cloudConnector.SentMessages("")
 	uptimeSeconds := api.cloudConnector.Uptime("") + 1
 
 	json.NewEncoder(w).Encode(
 		statusPayload{
 			Connections:               api.cloudConnector.OpenConnections(),
 			Uptime:                    api.cloudConnector.Uptime(""),
-			IncomingMessages:          incomingMessages,
-			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
-			OutgoingMessages:          outgoingMessages,
-			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+			ReceivedMessages:          incomingMessages,
+			ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+			SentMessages:              outgoingMessages,
+			SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
 			CommandsWaiting:           api.cloudConnector.CommandsWaiting(),
 			QueriesWaiting:            api.cloudConnector.QueriesWaiting(),
 			GoRoutines:                api.cloudConnector.GoRoutinesSpawned(),
@@ -203,14 +193,9 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
  *
  */
 func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
-	if api.authRequest(r) != nil {
-		api.unauthorized(w)
-		return
-	}
-
 	vars := mux.Vars(r)
-	incomingMessages := api.cloudConnector.IncomingMessages(vars["deviceID"])
-	outgoingMessages := api.cloudConnector.OutgoingMessages(vars["deviceID"])
+	incomingMessages := api.cloudConnector.ReceivedMessages(vars["deviceID"])
+	outgoingMessages := api.cloudConnector.SentMessages(vars["deviceID"])
 	uptimeSeconds := api.cloudConnector.Uptime(vars["deviceID"])
 
 	if uptimeSeconds == 0 {
@@ -225,10 +210,10 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(
 		deviceStatusPayload{
 			Uptime:                    uptimeSeconds,
-			IncomingMessages:          incomingMessages,
-			IncomingMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
-			OutgoingMessages:          outgoingMessages,
-			OutgoingMessagesPerSecond: float64(int64(outgoingMessages) / uptimeSeconds),
+			ReceivedMessages:          incomingMessages,
+			ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+			SentMessages:              outgoingMessages,
+			SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
 		},
 	)
 }
@@ -250,11 +235,6 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
  *     }
  */
 func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.Request) {
-	if api.authRequest(r) != nil {
-		api.unauthorized(w)
-		return
-	}
-
 	api.restAPIHeaders(w, http.StatusOK)
 
 	devices := api.cloudConnector.ConnectedDevices()
@@ -305,11 +285,6 @@ func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.
  *
  */
 func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.Request) {
-	if api.authRequest(r) != nil {
-		api.unauthorized(w)
-		return
-	}
-
 	vars := mux.Vars(r)
 
 	commandResponse, responseCode, err := api.cloudConnector.SendCommand(api.rawRequestBody(r), vars["deviceID"])
@@ -355,11 +330,6 @@ func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.
  *
  */
 func (api *DefaultCloudConnectorAPI) sendQuery(w http.ResponseWriter, r *http.Request) {
-	if api.authRequest(r) != nil {
-		api.unauthorized(w)
-		return
-	}
-
 	vars := mux.Vars(r)
 
 	queryResponse, responseCode, err := api.cloudConnector.SendQuery(api.rawRequestBody(r), vars["deviceID"])

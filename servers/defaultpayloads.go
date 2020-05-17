@@ -4,10 +4,10 @@ type statusPayload struct {
 	ServerCurrentState        CloudConnectorState `json:"server_current_state"`
 	Connections               uint                `json:"connections"`
 	Uptime                    int64               `json:"uptime"`
-	IncomingMessages          uint                `json:"incoming_messages"`
-	IncomingMessagesPerSecond float64             `json:"incoming_messages_per_second"`
-	OutgoingMessages          uint                `json:"outgoing_messages"`
-	OutgoingMessagesPerSecond float64             `json:"outgoing_messages_per_second"`
+	ReceivedMessages          uint                `json:"received_messages"`
+	ReceivedMessagesPerSecond float64             `json:"received_messages_per_second"`
+	SentMessages              uint                `json:"sent_messages"`
+	SentMessagesPerSecond     float64             `json:"sent_messages_per_second"`
 	CommandsWaiting           uint                `json:"commands_waiting"`
 	QueriesWaiting            uint                `json:"queries_waiting"`
 	GoRoutines                int                 `json:"go_routines"`
@@ -18,10 +18,10 @@ type statusPayload struct {
 
 type deviceStatusPayload struct {
 	Uptime                    int64   `json:"uptime"`
-	IncomingMessages          uint    `json:"incoming_messages"`
-	IncomingMessagesPerSecond float64 `json:"incoming_messages_per_second"`
-	OutgoingMessages          uint    `json:"outgoing_messages"`
-	OutgoingMessagesPerSecond float64 `json:"outgoing_messages_per_second"`
+	ReceivedMessages          uint    `json:"received_messages"`
+	ReceivedMessagesPerSecond float64 `json:"received_messages_per_second"`
+	SentMessages              uint    `json:"sent_messages"`
+	SentMessagesPerSecond     float64 `json:"sent_messages_per_second"`
 }
 
 type devicesListPayload struct {

@@ -96,8 +96,8 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	inMemoryConnectionsStats := storage.NewInMemoryDeviceConnectionsStatsStorage()
 	inMemoryConnectionsStats.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
 	inMemoryConnectionsStats.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
-	inMemoryConnectionsStats.IncomingMessageReceived("device_abc")
-	inMemoryConnectionsStats.IncomingMessageReceived("device_xyz")
+	inMemoryConnectionsStats.MessageWasReceived("device_abc")
+	inMemoryConnectionsStats.MessageWasReceived("device_xyz")
 
 	connectionsHandler := dummyConnectionsHandler{}
 
@@ -110,9 +110,9 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	go s.Start()
 	time.Sleep(20 * time.Millisecond)
 
-	assert.Assert(t, s.IncomingMessages("device_abc") == 1)
-	assert.Assert(t, s.IncomingMessages("device_xyz") == 1)
-	assert.Assert(t, s.IncomingMessages("") == 2)
+	assert.Assert(t, s.ReceivedMessages("device_abc") == 1)
+	assert.Assert(t, s.ReceivedMessages("device_xyz") == 1)
+	assert.Assert(t, s.ReceivedMessages("") == 2)
 }
 
 func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {

@@ -206,7 +206,7 @@ func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, 
 			return
 		}
 
-		handler.connectionsStats.IncomingMessageReceived(deviceID)
+		handler.connectionsStats.MessageWasReceived(deviceID)
 
 		var m deviceMessage
 		err = json.Unmarshal([]byte(message), &m)
@@ -312,7 +312,7 @@ func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID s
 
 		deviceQueryResponse := <-asyncResponseWaitChannel
 
-		handler.connectionsStats.OutgoingMessageSent(deviceID)
+		handler.connectionsStats.MessageWasSent(deviceID)
 
 		r <- deviceQueryResponse.Payload
 	}()
