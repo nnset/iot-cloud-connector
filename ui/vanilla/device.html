@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+    <link type="text/css" rel="stylesheet" href="css/components/system-status.css"  media="screen,projection"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Cloud Connector Vanilla</title>
+  </head>
+
+  <body>
+    <nav class="blue darken-4" role="navigation">
+        <div class="nav-wrapper container center nav-tiny-title">
+            <ul class="left">
+                <li>
+                    <a href="#" data-target="slide-out" class="sidenav-trigger show-on-large"><i class="material-icons">menu</i></a>
+                </li>
+            </ul>
+
+            <a href="index.html">
+                IoT Cloud Connector
+            </a>
+        </div>
+    </nav>
+
+    <ul id="slide-out" class="sidenav">
+        <li><a class="subheader">IoT Cloud Connector</a></li>
+        <li>
+            <a href="index.html">
+                <i class="material-icons">insert_chart</i>Dashboard
+            </a>
+        </li>
+    </ul>
+
+    <div class="container main-section">
+        
+        <div class="section show-device"></div>
+
+    </div>
+
+    <script type="text/javascript" src="js/materialize.min.js"></script>
+    <script type="text/javascript" src="js/network/cloud-connector.js"></script>
+    <script type="text/javascript" src="js/components/component-with-preloader.js"></script>
+    <script type="text/javascript" src="js/components/view-device.js"></script>
+
+    <script>
+        M.AutoInit();
+        cloud = new CloudConnector('http://localhost:9090');
+
+        var searchParams = new URLSearchParams(window.location.search);
+
+        view_device = new ViewDevice(searchParams.get("id"), cloud, '.show-device', 'Device');
+        view_device.render();
+
+      </script>
+  </body>
+</html>

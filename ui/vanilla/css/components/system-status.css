@@ -1,0 +1,28 @@
+.system-metric {
+    text-align: center;
+    border-right: 2px solid #ADB2B5;
+    margin-bottom: 10px;
+    padding: 4px;
+}
+
+.system-metric .top-value {
+    font-size: 12px;
+    overflow: hidden;
+    white-space: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.system-metric .top-value .material-icons {
+    font-size: 20px;
+    margin-right: 2px;
+}
+
+.system-metric .value {
+    font-size: 36px;
+}
+
+.system-metric .unit {
+    font-size: 12px;
+}
