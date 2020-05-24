@@ -74,20 +74,28 @@ func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error
 func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/cloud-connector/status", api.status).Methods("GET")
-	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus).Methods("GET")
-	router.HandleFunc("/devices", api.devicesList).Methods("GET")
-	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods("POST")
-	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods("POST")
+	router.HandleFunc("/cloud-connector/status", api.status).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/devices", api.devicesList).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods(http.MethodPost, http.MethodOptions)
+	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods(http.MethodPost, http.MethodOptions)
+
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Method, Authorization")
+
+			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				next.ServeHTTP(w, r)
+			}
+		})
+	})
 
 	router.Use(api.auth.Middleware)
 
 	return router
-}
-
-func (api *DefaultCloudConnectorAPI) restAPIHeaders(w http.ResponseWriter, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
 }
 
 func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
@@ -100,11 +108,11 @@ func (api *DefaultCloudConnectorAPI) unauthorized(w http.ResponseWriter) {
 }
 
 func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Request) {
-	api.restAPIHeaders(w, http.StatusOK)
-
 	incomingMessages := api.cloudConnector.ReceivedMessages("")
 	outgoingMessages := api.cloudConnector.SentMessages("")
 	uptimeSeconds := api.cloudConnector.Uptime("") + 1
+
+	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(
 		statusPayload{
@@ -138,7 +146,7 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
 		return
 	}
 
-	api.restAPIHeaders(w, http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(
 		deviceStatusPayload{
@@ -152,10 +160,10 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
 }
 
 func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.Request) {
-	api.restAPIHeaders(w, http.StatusOK)
-
 	devices := api.cloudConnector.ConnectedDevices()
 	sort.Strings(devices)
+
+	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(
 		devicesListPayload{
@@ -191,9 +199,13 @@ func (api *DefaultCloudConnectorAPI) responseFromDevice(w http.ResponseWriter, c
 			Response: "",
 			Errors:   err.Error(),
 		}
+
+		w.WriteHeader(http.StatusBadRequest)
+
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 
-	api.restAPIHeaders(w, responseCode)
 	json.NewEncoder(w).Encode(payload)
 }
 
