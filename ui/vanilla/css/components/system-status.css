@@ -25,4 +25,5 @@
 
 .system-metric .unit {
     font-size: 12px;
+    min-height: 20px;
 }

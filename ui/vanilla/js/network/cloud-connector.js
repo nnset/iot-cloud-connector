@@ -17,6 +17,6 @@ class CloudConnector {
   }
 
   show_device_path(device_id) {
-    return `devices/status/${device_id}`;
+    return `devices/${device_id}/show`;
   }
 }

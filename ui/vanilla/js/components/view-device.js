@@ -1,5 +1,5 @@
 class ViewDevice extends ComponentWithPreloader {
-    constructor(device_id, cloud_connector, container_selector, title) {
+    constructor(device_id, cloud_connector, container_selector, title, i18n, icons) {
       super(container_selector, title);
 
       this.device_id = device_id;
@@ -8,6 +8,8 @@ class ViewDevice extends ComponentWithPreloader {
       this.already_rendered = false;
       this.refresh_handler_id = null;
       this.refresh_interval = 3000;
+      this.i18n = i18n;
+      this.icons = icons;
     }
   
     render() {
@@ -21,17 +23,29 @@ class ViewDevice extends ComponentWithPreloader {
 
       this.cloud_connector.getData(this.cloud_connector.show_device_path(this.device_id))
         .then(data => {
+
+          var metrics = '';
+
+          for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
+            metrics += new DeviceMetric(
+              metric_key, 
+              metric_value, 
+              this.i18n(metric_key), 
+              this.icons(metric_key), 
+              this.i18n(data['units'][metric_key])
+            ).render();
+          }
+
           var html = `
+            <section class="device-status">
               <h2>${this.title}</h2>
-              <div class="status">
-                  <p><span data-metric="uptime">${data['uptime']}</span> uptime seconds</p>
-              </div>
-              <div class="messages">
-                  <p><span data-metric="received_messages">${data['received_messages']}</span> received messages</p>
-                  <p><span data-metric="received_messages_per_second">${data['received_messages_per_second']}</span> received messages per second</p>
-                  <p><span data-metric="sent_messages">${data['sent_messages']}</span> sent messages</p>
-                  <p><span data-metric="sent_messages_per_second">${data['sent_messages_per_second']}</span> sent messages per second</p>
-              </div>
+              <div class="metrics row">
+                ${metrics}
+              <div>
+              
+              <div class="messages row">
+              <div>
+            </section>
           `;
 
           this.__sleep(500).then(() => {
@@ -50,10 +64,12 @@ class ViewDevice extends ComponentWithPreloader {
       this.refresh_handler_id = setInterval(() => {
         this.cloud_connector.getData(this.cloud_connector.show_device_path(this.device_id))
         .then(data => {  
-          for (var [metric_key, metric_value] of Object.entries(data)) {
-            var metric_dom = document.body.querySelector(`${this.container_selector} [data-metric="${metric_key}"]`);
+
+          for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
+            var metric_dom = document.body.querySelector(`${this.container_selector} [data-metric="${metric_key}"] .value`);
                 metric_dom.innerHTML = metric_value;
           }
+
         });
       }, interval);
     }

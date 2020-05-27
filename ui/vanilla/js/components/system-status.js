@@ -21,9 +21,15 @@ class SystemStatus extends ComponentWithPreloader {
     this.cloud_connector.getData(this.fetch_data_path)
       .then(data => {
         var metrics = '';
-        for (var [metric_key, metric_value] of Object.entries(data)) {
-          // TODO metric_human_name from request.
-          metrics += (new SystemMetric(metric_key, metric_value, this.i18n(metric_key), this.icons(metric_key))).render();
+        for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
+          metrics += 
+            (new SystemMetric(
+                metric_key, 
+                metric_value, 
+                this.i18n(metric_key), 
+                this.icons(metric_key), 
+                this.i18n(data['units'][metric_key]))
+            ).render();
         }
 
         var html = `
@@ -33,7 +39,7 @@ class SystemStatus extends ComponentWithPreloader {
           </div>
         `;
 
-        this.__sleep(700).then(
+        this.__sleep(500).then(
           () => {
             container.innerHTML = '';
             container.insertAdjacentHTML('afterbegin', html);

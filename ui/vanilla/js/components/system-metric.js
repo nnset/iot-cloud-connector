@@ -3,8 +3,8 @@ class SystemMetric {
     this.metric_key = metric_key;
     this.metric_value = metric_value;
     this.metric_human_name = metric_human_name;
-    this.metric_unit = metric_unit || '';
     this.icon = icon;
+    this.metric_unit = metric_unit || '';    
   }
 
   render(container = null) {

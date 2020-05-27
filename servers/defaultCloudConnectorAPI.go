@@ -75,7 +75,7 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/cloud-connector/status", api.status).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/devices/status/{deviceID}", api.deviceStatus).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/devices/{deviceID}/show", api.showDevice).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/devices", api.devicesList).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods(http.MethodPost, http.MethodOptions)
 	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods(http.MethodPost, http.MethodOptions)
@@ -115,25 +115,70 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(
-		statusPayload{
-			Connections:               api.cloudConnector.OpenConnections(),
-			Uptime:                    api.cloudConnector.Uptime(""),
-			ReceivedMessages:          incomingMessages,
-			ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
-			SentMessages:              outgoingMessages,
-			SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
-			CommandsWaiting:           api.cloudConnector.CommandsWaiting(),
-			QueriesWaiting:            api.cloudConnector.QueriesWaiting(),
-			GoRoutines:                api.cloudConnector.GoRoutinesSpawned(),
-			SystemMemory:              api.cloudConnector.SystemMemory(),
-			AllocatedMemory:           api.cloudConnector.AllocatedMemory(),
-			HeapAllocatedMemory:       api.cloudConnector.HeapAllocatedMemory(),
-			ServerCurrentState:        api.cloudConnector.State(),
+		cloudConnectorStatusPayload{
+			Metrics: struct {
+				ServerCurrentState        CloudConnectorState `json:"server_current_state"`
+				Connections               uint                `json:"connections"`
+				Uptime                    int64               `json:"uptime"`
+				ReceivedMessages          uint                `json:"received_messages"`
+				ReceivedMessagesPerSecond float64             `json:"received_messages_per_second"`
+				SentMessages              uint                `json:"sent_messages"`
+				SentMessagesPerSecond     float64             `json:"sent_messages_per_second"`
+				CommandsWaiting           uint                `json:"commands_waiting"`
+				QueriesWaiting            uint                `json:"queries_waiting"`
+				GoRoutines                int                 `json:"go_routines"`
+				SystemMemory              uint                `json:"system_memory"`
+				AllocatedMemory           uint                `json:"allocated_memory"`
+				HeapAllocatedMemory       uint                `json:"heap_allocated_memory"`
+			}{
+				Connections:               api.cloudConnector.OpenConnections(),
+				Uptime:                    api.cloudConnector.Uptime(""),
+				ReceivedMessages:          incomingMessages,
+				ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+				SentMessages:              outgoingMessages,
+				SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
+				CommandsWaiting:           api.cloudConnector.CommandsWaiting(),
+				QueriesWaiting:            api.cloudConnector.QueriesWaiting(),
+				GoRoutines:                api.cloudConnector.GoRoutinesSpawned(),
+				SystemMemory:              api.cloudConnector.SystemMemory(),
+				AllocatedMemory:           api.cloudConnector.AllocatedMemory(),
+				HeapAllocatedMemory:       api.cloudConnector.HeapAllocatedMemory(),
+				ServerCurrentState:        api.cloudConnector.State(),
+			},
+			Units: struct {
+				ServerCurrentState        string `json:"server_current_state"`
+				Connections               string `json:"connections"`
+				Uptime                    string `json:"uptime"`
+				ReceivedMessages          string `json:"received_messages"`
+				ReceivedMessagesPerSecond string `json:"received_messages_per_second"`
+				SentMessages              string `json:"sent_messages"`
+				SentMessagesPerSecond     string `json:"sent_messages_per_second"`
+				CommandsWaiting           string `json:"commands_waiting"`
+				QueriesWaiting            string `json:"queries_waiting"`
+				GoRoutines                string `json:"go_routines"`
+				SystemMemory              string `json:"system_memory"`
+				AllocatedMemory           string `json:"allocated_memory"`
+				HeapAllocatedMemory       string `json:"heap_allocated_memory"`
+			}{
+				ServerCurrentState:        "",
+				Connections:               "",
+				Uptime:                    "secs",
+				ReceivedMessages:          "",
+				ReceivedMessagesPerSecond: "",
+				SentMessages:              "",
+				SentMessagesPerSecond:     "",
+				CommandsWaiting:           "",
+				QueriesWaiting:            "",
+				GoRoutines:                "",
+				SystemMemory:              "Mb",
+				AllocatedMemory:           "Mb",
+				HeapAllocatedMemory:       "Mb",
+			},
 		},
 	)
 }
 
-func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http.Request) {
+func (api *DefaultCloudConnectorAPI) showDevice(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	incomingMessages := api.cloudConnector.ReceivedMessages(vars["deviceID"])
 	outgoingMessages := api.cloudConnector.SentMessages(vars["deviceID"])
@@ -149,12 +194,33 @@ func (api *DefaultCloudConnectorAPI) deviceStatus(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(
-		deviceStatusPayload{
-			Uptime:                    uptimeSeconds,
-			ReceivedMessages:          incomingMessages,
-			ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
-			SentMessages:              outgoingMessages,
-			SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
+		showDevicePayload{
+			Metrics: struct {
+				Uptime                    int64   `json:"uptime"`
+				ReceivedMessages          uint    `json:"received_messages"`
+				ReceivedMessagesPerSecond float64 `json:"received_messages_per_second"`
+				SentMessages              uint    `json:"sent_messages"`
+				SentMessagesPerSecond     float64 `json:"sent_messages_per_second"`
+			}{
+				Uptime:                    uptimeSeconds,
+				ReceivedMessages:          incomingMessages,
+				ReceivedMessagesPerSecond: float64(int64(incomingMessages) / uptimeSeconds),
+				SentMessages:              outgoingMessages,
+				SentMessagesPerSecond:     float64(int64(outgoingMessages) / uptimeSeconds),
+			},
+			Units: struct {
+				Uptime                    string `json:"uptime"`
+				ReceivedMessages          string `json:"received_messages"`
+				ReceivedMessagesPerSecond string `json:"received_messages_per_second"`
+				SentMessages              string `json:"sent_messages"`
+				SentMessagesPerSecond     string `json:"sent_messages_per_second"`
+			}{
+				Uptime:                    "secs",
+				ReceivedMessages:          "",
+				ReceivedMessagesPerSecond: "",
+				SentMessages:              "",
+				SentMessagesPerSecond:     "",
+			},
 		},
 	)
 }

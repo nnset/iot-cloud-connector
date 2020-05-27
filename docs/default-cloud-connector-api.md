@@ -24,43 +24,75 @@ TODO
 
 ```json
 {
-  "server_current_state": "string",
-  "connections" : 100,
-  "uptime": 300,
-  "incoming_messages": 300,
-  "incoming_messages_per_second": 1,
-  "outgoing_messages": 0,
-  "outgoing_messages_per_second": 0,
-  "commands_waiting": 0,
-  "queries_waiting": 0,
-  "go_routines": 0,
-  "system_memory": 9,
-  "allocated_memory": 12
+  "metrics": {
+    "server_current_state": "started",
+    "connections": 300,
+    "uptime": 897,
+    "received_messages": 300,
+    "received_messages_per_second": 0,
+    "sent_messages": 0,
+    "sent_messages_per_second": 0,
+    "commands_waiting": 0,
+    "queries_waiting": 0,
+    "go_routines": 309,
+    "system_memory": 69,
+    "allocated_memory": 4,
+    "heap_allocated_memory": 4
+  },
+  "units": {
+    "server_current_state": "",
+    "connections": "",
+    "uptime": "secs",
+    "received_messages": "",
+    "received_messages_per_second": "",
+    "sent_messages": "",
+    "sent_messages_per_second": "",
+    "commands_waiting": "",
+    "queries_waiting": "",
+    "go_routines": "",
+    "system_memory": "Mb",
+    "allocated_memory": "Mb",
+    "heap_allocated_memory": "Mb"
+  }
 }
 ```
 
-| Field                         |  Type  | Description |
-| ------                        | ------ |------ |
-|  server_current_state         | string | Server's current state. |
-|  connections                  | int    | How many connections are currently open. |
-|  uptime                       | int    | Server uptime in seconds. |
-|  received_messages            | int    | How may messages the server received. |
-|  received_messages_per_second | int    | How may messages the server is receiving per second. |
-|  sent_messages                | int    | How may messages the server sent to the connected clients. |
-|  sent_messages_per_second     | int    | How may messages the server is sending per second. |
-|  commands_waiting             | int    | How many commands to devices are currently waiting feedback from the device. |
-|  queries_waiting              | int    | How many queries to devices are currently waiting device's response. |
-|  go_routines                  | int    | How may Go routines are current spawned. |
-|  system_memory                | int    | Total mega bytes of memory obtained from the OS. |
-|  allocated_memory             | int    | Mega bytes allocated for heap objects. |
-|  heap_allocated_memory        | int    | Mega bytes of allocated heap objects. |
-
+| Field                                     |  Type  | Description |
+| ------                                    | ------ |------ |
+|  metrics                                  | object | Server's metrics. |
+|  **metrics**.server_current_state         | string | Server's current state. |
+|  **metrics**.connections                  | int    | How many connections are currently open. |
+|  **metrics**.uptime                       | int    | Server uptime in seconds. |
+|  **metrics**.received_messages            | int    | How may messages the server received. |
+|  **metrics**.received_messages_per_second | int    | How may messages the server is receiving per second. |
+|  **metrics**.sent_messages                | int    | How may messages the server sent to the connected clients. |
+|  **metrics**.sent_messages_per_second     | int    | How may messages the server is sending per second. |
+|  **metrics**.commands_waiting             | int    | How many commands to devices are currently waiting feedback from the device. |
+|  **metrics**.queries_waiting              | int    | How many queries to devices are currently waiting device's response. |
+|  **metrics**.go_routines                  | int    | How may Go routines are current spawned. |
+|  **metrics**.system_memory                | int    | Total mega bytes of memory obtained from the OS. |
+|  **metrics**.allocated_memory             | int    | Mega bytes allocated for heap objects. |
+|  **metrics**.heap_allocated_memory        | int    | Mega bytes of allocated heap objects. |
+|  units                                    | object | Server's metrics units. |
+|  **units**.server_current_state           | string | "" |
+|  **units**.connections                    | string | "" |
+|  **units**.uptime                         | string | "secs" |
+|  **units**.received_messages              | string | "" |
+|  **units**.received_messages_per_second   | string | "" |
+|  **units**.sent_messages                  | string | "" |
+|  **units**.sent_messages_per_second       | string | "" |
+|  **units**.commands_waiting               | string | "" |
+|  **units**.queries_waiting                | string | "" |
+|  **units**.go_routines                    | string | "" |
+|  **units**.system_memory                  | string | "Mb" |
+|  **units**.allocated_memory               | string | "Mb" |
+|  **units**.heap_allocated_memory          | string | "Mb" |
 
 ### IoT Devices
 
 #### Device status
 
-> **GET** `/devices/status/:deviceID`
+> **GET** `/devices/:deviceID/show`
 
 **Headers**
 
@@ -79,22 +111,37 @@ TODO
 
 ```json
 {
-  "uptime": 100,
-  "received_messages": 0,
-  "received_messages_per_second": 0,
-  "sent_messages": 0,
-  "sent_messages_per_second": 0
+  "metrics": {
+    "uptime": 100,
+    "received_messages": 0,
+    "received_messages_per_second": 0,
+    "sent_messages": 0,
+    "sent_messages_per_second": 0
+  },
+  "units": {
+    "uptime": "secs",
+    "received_messages": "",
+    "received_messages_per_second": "",
+    "sent_messages": "",
+    "sent_messages_per_second": ""
+  }
 }
 ```
 
-| Field                         |  Type  | Description |
-| ------                        | ------ |------ |
-|  uptime                       | int    | Device connection uptime in seconds. |
-|  received_messages            | int    | How may messages the device sent to the server. |
-|  received_messages_per_second | int    | How many messages the device is sending to the server per second. |
-|  sent_messages                | int    | How may messages the device received from the server. |
-|  sent_messages_per_second     | int    | How may messages the device is receiving from the server per second. |
-
+| Field                                     |  Type  | Description |
+| ------                                    | ------ |------ |
+|  metrics                                  | Object | Device's metrics. |
+|  **metrics**.uptime                       | int    | Device connection uptime in seconds. |
+|  **metrics**.received_messages            | int    | How may messages the device sent to the server. |
+|  **metrics**.received_messages_per_second | int    | How many messages the device is sending to the server per second. |
+|  **metrics**.sent_messages                | int    | How may messages the device received from the server. |
+|  **metrics**.sent_messages_per_second     | int    | How may messages the device is receiving from the server per second. |
+|  units                                    | Object | Device's metrics units. |
+|  **units**.uptime                         | string | "secs" |
+|  **units**.received_messages              | string | "" |
+|  **units**.received_messages_per_second   | string | "" |
+|  **units**.sent_messages                  | string | "" |
+|  **units**.sent_messages_per_second       | string | "" |
 
 **Error**
 

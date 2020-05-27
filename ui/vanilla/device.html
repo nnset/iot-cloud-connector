@@ -3,7 +3,7 @@
   <head>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
-    <link type="text/css" rel="stylesheet" href="css/components/system-status.css"  media="screen,projection"/>
+    <link type="text/css" rel="stylesheet" href="css/components/device-metric.css"  media="screen,projection"/>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Cloud Connector Vanilla</title>
@@ -39,18 +39,59 @@
 
     </div>
 
+    <script type="text/javascript" src="js/i18n.min.js"></script>
     <script type="text/javascript" src="js/materialize.min.js"></script>
     <script type="text/javascript" src="js/network/cloud-connector.js"></script>
     <script type="text/javascript" src="js/components/component-with-preloader.js"></script>
+    <script type="text/javascript" src="js/components/device-metric.js"></script>
     <script type="text/javascript" src="js/components/view-device.js"></script>
 
     <script>
+        translations = {
+          "values": {
+            "server_current_state": "State",
+            "connections": "Connections",
+            "uptime": "uptime",
+            "received_messages": "Received messages",
+            "received_messages_per_second": "Received messages (m/s)",
+            "sent_messages": "Sent messages",
+            "sent_messages_per_second": "Sent messages (m/s)",
+            "commands_waiting": "Commands waiting",
+            "queries_waiting": "Queries waiting",
+            "go_routines": "Go routines spawned",
+            "system_memory": "System memory",
+            "allocated_memory": "Allocated memory",
+            "heap_allocated_memory": "Allocated heap memory",
+          }
+        };
+
+        icons = {
+          "values": {
+            "server_current_state": "storage",
+            "connections": "sim_card",
+            "uptime": "timer",
+            "received_messages": "call_received",
+            "received_messages_per_second": "call_received",
+            "sent_messages": "call_made",
+            "sent_messages_per_second": "call_made",
+            "commands_waiting": "timelapse",
+            "queries_waiting": "timelapse",
+            "go_routines": "grain",
+            "system_memory": "memory",
+            "allocated_memory": "memory",
+            "heap_allocated_memory": "memory",
+          }
+        };
+
+        english = i18n.create(translations)
+        icons = i18n.create(icons)
+
         M.AutoInit();
         cloud = new CloudConnector('http://localhost:9090');
 
         var searchParams = new URLSearchParams(window.location.search);
 
-        view_device = new ViewDevice(searchParams.get("id"), cloud, '.show-device', 'Device');
+        view_device = new ViewDevice(searchParams.get("id"), cloud, '.show-device', 'Device', english, icons);
         view_device.render();
 
       </script>
