@@ -7,6 +7,8 @@ class SystemStatus extends ComponentWithPreloader {
     this.container_selector = container_selector;
     this.i18n = i18n;
     this.icons = icons;
+    this.refresh_handler_id = null;
+    this.refresh_interval = 3000;
   }
 
   render() {
@@ -43,10 +45,25 @@ class SystemStatus extends ComponentWithPreloader {
           () => {
             container.innerHTML = '';
             container.insertAdjacentHTML('afterbegin', html);
+            this.__refresh(this.refresh_interval)
           }
         );
 
         return html;
       });
+    }
+
+    __refresh(interval) {
+      this.refresh_handler_id = setInterval(() => {
+        this.cloud_connector.getData(this.fetch_data_path)
+        .then(data => {  
+
+          for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
+            var metric_dom = document.body.querySelector(`${this.container_selector} [data-metric="${metric_key}"] .value`);
+                metric_dom.innerHTML = metric_value;
+          }
+
+        });
+      }, interval);
     }
 }
