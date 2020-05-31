@@ -35,35 +35,37 @@ class ControlDevice extends ComponentWithSleep {
         </div>
       </h2>
 
-      <div class="row">
-        <div class="payload-form col s12 m12 l6">
-            <form id="payload-form" class="col s12">
-                <div class="input-field col s12">
-                    <textarea id="payload" class="materialize-textarea"></textarea>
-                    <label for="payload">${this.i18n('payload_to_send')}</label>
-                </div>
-
-                <div class="col s12 form-buttons ">
-                    <div class="submit-command col s6">
-                        <button class="btn waves-effect waves-light" type="submit" name="action">${this.i18n('send_as_command')}
-                            <i class="material-icons right">${this.icons("send_command")}</i>
-                        </button>
+      <div class="content">
+        <div class="row">
+            <div class="payload-form col s12 m12 l5">
+                <form id="payload-form" class="col s12">
+                    <div class="input-field col s12">
+                        <textarea id="payload" class="text-darken-2 materialize-textarea"></textarea>
+                        <label for="payload">${this.i18n('payload_to_send')}</label>
                     </div>
-                    <div class="submit-query col s6">
-                        <button class="btn waves-effect waves-light" type="submit" name="action">${this.i18n('send_as_query')}
-                            <i class="material-icons right">${this.icons("send_query")}</i>
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
 
-        <div class="responses col s12 m12 l6">
-            <div class="input-field col s12">
-                <textarea id="responses" class="materialize-textarea" readonly></textarea>
-                <label for="responses">${this.i18n('responses')}</label>
+                    <div class="col s12 form-buttons ">
+                        <div class="submit-command col s6">
+                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="action">${this.i18n('send_as_command')}
+                                <i class="material-icons right">${this.icons("send_command")}</i>
+                            </button>
+                        </div>
+                        <div class="submit-query col s6">
+                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="action">${this.i18n('send_as_query')}
+                                <i class="material-icons right">${this.icons("send_query")}</i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-        </div>
+
+            <div class="device-responses col s12 m12 l7">
+                <div class="input-field col s12">
+                    <textarea id="responses" class="materialize-textarea" readonly></textarea>
+                    <label for="responses">${this.i18n('responses')}</label>
+                </div>
+            </div>
+          </div>
       </div>
     `;
 

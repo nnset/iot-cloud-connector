@@ -24,7 +24,7 @@ class ConnectedDevices extends ComponentWithPreloader {
 
         var html = `
           <h2>${this.title}</h2>
-          <div class="row">
+          <div class="content row">
             ${(new Table(tableData.columns, tableData.rows)).render()}
           </div>
         `;
@@ -59,7 +59,7 @@ class ConnectedDevices extends ComponentWithPreloader {
 
   __show_connected_device_link(device_id) {
     var html = `
-      <a href = "device.html?id=${device_id}" class="waves-effect waves-light btn-small">
+      <a href = "device.html?id=${device_id}" class="list-action waves-effect waves-light">
         <i class="material-icons left">${this.icons('view_device')}</i>${this.i18n('view_device')}
       </a>
     `;

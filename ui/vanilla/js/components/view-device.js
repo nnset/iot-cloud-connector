@@ -27,7 +27,7 @@ class ViewDevice extends ComponentWithPreloader {
           var metrics = '';
 
           for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
-            metrics += new DeviceMetric(
+            metrics += new SystemMetric(
               metric_key, 
               metric_value, 
               this.i18n(metric_key), 

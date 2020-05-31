@@ -1,11 +1,17 @@
-.system-metric {
-    text-align: center;
-    border-right: 2px solid #ADB2B5;
-    margin-bottom: 10px;
-    padding: 4px;
+.col.system-metric {
+    padding: 0;
 }
 
-.system-metric .top-value {
+.connected-devices .content{
+    -webkit-box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    border-radius: 4px;
+    border: 1px solid #2b3840;
+    background-color: #27333a;
+    padding: 8px;
+}
+
+.system-metric .content .top-value {
     font-size: 12px;
     overflow: hidden;
     white-space: normal;
@@ -14,16 +20,33 @@
     justify-content: center;
 }
 
-.system-metric .top-value .material-icons {
+.system-metric .content .top-value .material-icons {
     font-size: 20px;
     margin-right: 2px;
 }
 
-.system-metric .value {
-    font-size: 36px;
+.system-metric .content .value {
+    font-size: 32px;
+    color: var(--white-color);
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    overflow: auto;
 }
 
-.system-metric .unit {
+.system-metric .content .unit {
     font-size: 12px;
-    min-height: 20px;
+    min-height: 24px;
+}
+
+.connected-devices .content table .list-action {
+    background-color: transparent;
+    border: 1px solid #1976D2;
+    color: var(--body-color);
+    padding: 5px;
+    border-radius: 2px;
+    font-size: calc(var(--base-text-size)*0.75);
+}
+
+.connected-devices .content table .list-action .material-icons{
+    font-size: calc(var(--base-text-size)*0.9);
+    margin-right: 6px;
 }

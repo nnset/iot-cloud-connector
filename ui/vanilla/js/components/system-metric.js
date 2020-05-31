@@ -9,14 +9,16 @@ class SystemMetric {
 
   render(container = null) {
     var html = `
-        <div class="col s3 m2 system-metric" data-metric="${this.metric_key}">
-            <div class="top-value">
-                <i class="material-icons">${this.icon}</i>${this.metric_human_name}
+        <div class="metric system-metric col s5 m2" data-metric="${this.metric_key}">
+            <div class="content">
+                <div class="top-value">
+                    <i class="material-icons">${this.icon}</i>${this.metric_human_name}
+                </div>
+                <div class="value">
+                    ${this.metric_value}
+                </div>
+                <div class="unit">${this.metric_unit}</div>
             </div>
-            <div class="value">
-                ${this.metric_value}
-            </div>
-            <div class="unit">${this.metric_unit}</div>
         </div>
     `;
 

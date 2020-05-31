@@ -1,14 +1,47 @@
+.control-device .content {
+    -webkit-box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    border-radius: 4px;
+    border: 1px solid #2b3840;
+    background-color: #27333a;
+    padding: 8px;
+}
+
 .control-device .form-buttons .submit-query{
     text-align: right;
 }
 
-.control-device #responses{
-    font-size: 8pt;
+.control-device #payload-form #payload,
+.control-device .device-responses #responses{
+    font-size: 13px;
     font-family: Courier, "Lucida Console", monospace;
+    color: var(--body-text-color);
+    line-height: 18px;
 }
 
 .control-device .request-spinner {
     opacity: 0;
     -webkit-transition: opacity 1000ms linear;
     transition: opacity 1000ms linear;
+}
+
+.control-device #payload-form .input-field label,
+.control-device .device-responses .input-field label {
+    color: var(--body-text-color);
+}
+
+.control-device #payload-form .input-field textarea,
+.control-device .device-responses .input-field textarea {
+    color: var(--body-text-color);
+}
+
+.control-device #payload-form .input-field textarea:focus + label,
+.control-device .device-responses .input-field textarea:focus + label{
+    color: var(--body-text-color);
+}
+
+.control-device #payload-form .input-field textarea:focus, 
+.control-device .device-responses .input-field textarea:focus {
+    border-bottom: 1px solid #4D5A62;
+    box-shadow: 0 1px 0 0 #4D5A62;
 }

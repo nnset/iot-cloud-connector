@@ -1,0 +1,35 @@
+:root {
+    --base-text-size: 15px;
+    --base-heading-size: 24px;
+    --white-color: #f6f6f6;
+    --body-text-color: #7b919e;
+    --body-background-color: #1f282e;
+}
+
+body {
+    background-color: var(--body-background-color);
+    color: var(--body-text-color);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-size: var(--base-heading-size);
+    color: var(--white-color);
+}
+
+.main-section {
+    min-height: 85vh;
+}
+
+.metric {
+    text-align: center;
+    margin: 10px;
+    -webkit-box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    border-radius: 4px;
+    border: 1px solid #2b3840;
+    background-color: #27333a;
+}
+
+.metric .content {
+    padding: 8px;
+}
