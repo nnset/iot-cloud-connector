@@ -1,0 +1,14 @@
+.control-device .form-buttons .submit-query{
+    text-align: right;
+}
+
+.control-device #responses{
+    font-size: 8pt;
+    font-family: Courier, "Lucida Console", monospace;
+}
+
+.control-device .request-spinner {
+    opacity: 0;
+    -webkit-transition: opacity 1000ms linear;
+    transition: opacity 1000ms linear;
+}

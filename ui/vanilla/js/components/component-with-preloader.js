@@ -1,5 +1,6 @@
-class ComponentWithPreloader {
+class ComponentWithPreloader extends ComponentWithSleep {
   constructor(container_selector, title) {
+    super();
     this.container_selector = container_selector;
     this.title = title;
   }
@@ -22,9 +23,5 @@ class ComponentWithPreloader {
 
     container.innerHTML = '';
     container.insertAdjacentHTML('afterbegin', html);
-  }
-
-  __sleep(milliseconds) {
-    return new Promise(resolve => setTimeout(resolve, milliseconds))
   }
 }

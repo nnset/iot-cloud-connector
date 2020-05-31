@@ -43,8 +43,12 @@
 
     
     <script type="text/javascript" src="js/i18n.min.js"></script>
+    <script type="text/javascript" src="js/locale/i18n-en.js"></script>
+    <script type="text/javascript" src="js/locale/i18n-es.js"></script>
+    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>    
     <script type="text/javascript" src="js/materialize.min.js"></script>
     <script type="text/javascript" src="js/network/cloud-connector.js"></script>
+    <script type="text/javascript" src="js/components/component-with-sleep.js"></script>
     <script type="text/javascript" src="js/components/component-with-preloader.js"></script>
     <script type="text/javascript" src="js/components/system-status.js"></script>
     <script type="text/javascript" src="js/components/system-metric.js"></script>
@@ -52,52 +56,15 @@
     <script type="text/javascript" src="js/components/table.js"></script>
 
     <script>
-        translations = {
-          "values": {
-            "server_current_state": "State",
-            "connections": "Connections",
-            "uptime": "uptime",
-            "received_messages": "Received messages",
-            "received_messages_per_second": "Received messages (m/s)",
-            "sent_messages": "Sent messages",
-            "sent_messages_per_second": "Sent messages (m/s)",
-            "commands_waiting": "Commands waiting",
-            "queries_waiting": "Queries waiting",
-            "go_routines": "Go routines spawned",
-            "system_memory": "System memory",
-            "allocated_memory": "Allocated memory",
-            "heap_allocated_memory": "Allocated heap memory",
-            "secs": "seconds",
-          }
-        };
-
-        icons = {
-          "values": {
-            "server_current_state": "storage",
-            "connections": "sim_card",
-            "uptime": "timer",
-            "received_messages": "call_received",
-            "received_messages_per_second": "call_received",
-            "sent_messages": "call_made",
-            "sent_messages_per_second": "call_made",
-            "commands_waiting": "timelapse",
-            "queries_waiting": "timelapse",
-            "go_routines": "grain",
-            "system_memory": "memory",
-            "allocated_memory": "memory",
-            "heap_allocated_memory": "memory",
-          }
-        };
-
-        english = i18n.create(translations)
-        icons = i18n.create(icons)
+        texts = i18n.create(i18n_es_texts)
+        icons = i18n.create(i18n_icons)
 
         M.AutoInit();
         cloud = new CloudConnector('http://localhost:9090');
-        system_status = new SystemStatus('cloud-connector/status', cloud, '.system-status', 'System status', english, icons);
+        system_status = new SystemStatus('cloud-connector/status', cloud, '.system-status', texts('system_status'), texts, icons);
         system_status.render();
 
-        connected_devices = new ConnectedDevices('devices', cloud, '.connected-devices', 'Connected devices');
+        connected_devices = new ConnectedDevices('devices', cloud, '.connected-devices', texts, icons);
         connected_devices.render();
       </script>
   </body>

@@ -1,10 +1,10 @@
 class CloudConnector {
-  constructor(apiURL) {
-    this.apiURL = apiURL;
+  constructor(api_url) {
+    this.api_url = api_url;
   }
 
   async getData(path = '') {
-    const response = await fetch(`${this.apiURL}/${path}`, {
+    const response = await fetch(`${this.api_url}/${path}`, {
       method: 'GET',
       mode: 'cors',
       headers: {
@@ -16,7 +16,29 @@ class CloudConnector {
     return response.json();
   }
 
+  async send_command(device_id, payload) {
+    return this.__send_to_device(device_id, 'devices/command', payload);
+  }
+
+  async send_query(device_id, payload) {
+    return this.__send_to_device(device_id, 'devices/query', payload);
+  }
+
+  async __send_to_device(device_id, path, payload) {
+    const response = await fetch(`${this.api_url}/${path}/${device_id}`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Request-Method': 'POST'
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      return response.json();
+  }
+
   show_device_path(device_id) {
     return `devices/${device_id}/show`;
-  }
+  }  
 }
