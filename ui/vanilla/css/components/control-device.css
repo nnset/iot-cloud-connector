@@ -7,6 +7,14 @@
     padding: 8px;
 }
 
+.control-device .form-buttons button {
+    font-size: calc(var(--base-text-size) * 0.75);
+}
+
+.control-device .form-buttons i {
+    font-size: var(--base-text-size);
+}
+
 .control-device .form-buttons .submit-query{
     text-align: right;
 }

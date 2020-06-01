@@ -4,42 +4,53 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
     <link type="text/css" rel="stylesheet" href="css/vanilla.css"  media="screen,projection"/>    
-    <link type="text/css" rel="stylesheet" href="css/components/system-status.css"  media="screen,projection"/>
+    <link type="text/css" rel="stylesheet" href="css/components/connection-setup.css"  media="screen,projection"/>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
     <title>Cloud Connector Vanilla</title>
   </head>
 
   <body>
     <nav class="blue darken-2" role="navigation">
         <div class="nav-wrapper container center nav-tiny-title">
-            <ul class="left">
-                <li>
-                    <a href="#" data-target="slide-out" class="sidenav-trigger show-on-large"><i class="material-icons">menu</i></a>
-                </li>
-            </ul>
-
-            <a href="index.html">
+            <a href="dashboard.html">
                 IoT Cloud Connector
             </a>
         </div>
     </nav>
 
-    <ul id="slide-out" class="sidenav">
-        <li><a class="subheader">IoT Cloud Connector</a></li>
-        <li>
-            <a href="index.html">
-                <i class="material-icons">insert_chart</i>Dashboard
-            </a>
-        </li>
-    </ul>
+    <div class="container main-section row">
+        <div class="connection-setup col s6 offset-s3">
+            <h2 class="header">Connect to your IoT Cloud Connector instance</h2>
 
-    <div class="container main-section">
-        
-        <div class="section system-status"></div>
+            <div class="content card horizontal">
+                <div class="logo card-image">
+                    <i class="material-icons">group_work</i>
+                </div>
+                
+                <div class="card-stacked">
+                    <div class="card-content">
+                        <form class="col s12" id="connection_setup_form">
+                            <div class="input-field col s12">
+                                <i class="material-icons prefix">link</i>
+                                <input placeholder="URL" id="cloud_connector_url" type="text" class="validate">
+                                <label for="cloud_connector_url">Cloud Connector API url</label>
+                            </div>
 
-        <div class="section connected-devices"></div>
-
+                            <div class="input-field col s12">
+                                <i class="material-icons prefix">lock_outline</i>
+                                <input placeholder="Token" id="cloud_connector_bearer" type="text">
+                                <label for="bearer">Bearer token (if needed)</label>
+                            </div>
+                            <div class="input-field col s12">
+                                <button class="blue darken-2 btn waves-effect waves-light">Connect</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer class="blue darken-2 page-footer">
@@ -58,25 +69,15 @@
     <script type="text/javascript" src="js/locale/i18n-es.js"></script>
     <script type="text/javascript" src="js/locale/i18n-icons.js"></script>    
     <script type="text/javascript" src="js/materialize.min.js"></script>
-    <script type="text/javascript" src="js/network/cloud-connector.js"></script>
-    <script type="text/javascript" src="js/components/component-with-sleep.js"></script>
-    <script type="text/javascript" src="js/components/component-with-preloader.js"></script>
-    <script type="text/javascript" src="js/components/system-status.js"></script>
-    <script type="text/javascript" src="js/components/system-metric.js"></script>
-    <script type="text/javascript" src="js/components/connected-devices.js"></script>
-    <script type="text/javascript" src="js/components/table.js"></script>
+    <script type="text/javascript" src="js/components/connection-setup.js"></script>
 
     <script>
-        texts = i18n.create(i18n_es_texts)
-        icons = i18n.create(i18n_icons)
 
         M.AutoInit();
-        cloud = new CloudConnector('http://localhost:9090');
-        system_status = new SystemStatus('cloud-connector/status', cloud, '.system-status', texts('system_status'), texts, icons);
-        system_status.render();
 
-        connected_devices = new ConnectedDevices('devices', cloud, '.connected-devices', texts, icons);
-        connected_devices.render();
+        texts = i18n.create(i18n_es_texts)
+
+        setup = new ConnectionSetup(texts);
       </script>
   </body>
 </html>

@@ -1,0 +1,3 @@
+.view-device h2 small{
+    font-size: calc(var(--base-heading-size) * 0.60);
+}

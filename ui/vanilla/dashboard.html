@@ -3,10 +3,8 @@
   <head>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
-    <link type="text/css" rel="stylesheet" href="css/vanilla.css"  media="screen,projection"/>
-    <link type="text/css" rel="stylesheet" href="css/components/view-device.css"  media="screen,projection"/>
+    <link type="text/css" rel="stylesheet" href="css/vanilla.css"  media="screen,projection"/>    
     <link type="text/css" rel="stylesheet" href="css/components/system-status.css"  media="screen,projection"/>
-    <link type="text/css" rel="stylesheet" href="css/components/control-device.css"  media="screen,projection"/>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8">
@@ -45,11 +43,10 @@
 
     <div class="container main-section">
         
-        <div class="section show-device"></div>
+        <div class="section system-status"></div>
 
-        <div class="section control-device">
+        <div class="section connected-devices"></div>
 
-        </div>
     </div>
 
     <footer class="blue darken-2 page-footer">
@@ -66,37 +63,34 @@
     <script type="text/javascript" src="js/i18n.min.js"></script>
     <script type="text/javascript" src="js/locale/i18n-en.js"></script>
     <script type="text/javascript" src="js/locale/i18n-es.js"></script>
-    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>
+    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>    
     <script type="text/javascript" src="js/materialize.min.js"></script>
     <script type="text/javascript" src="js/network/cloud-connector.js"></script>
     <script type="text/javascript" src="js/components/component-with-sleep.js"></script>
     <script type="text/javascript" src="js/components/component-with-preloader.js"></script>
+    <script type="text/javascript" src="js/components/system-status.js"></script>
     <script type="text/javascript" src="js/components/system-metric.js"></script>
-    <script type="text/javascript" src="js/components/view-device.js"></script>
-    <script type="text/javascript" src="js/components/control-device.js"></script>
+    <script type="text/javascript" src="js/components/connected-devices.js"></script>
+    <script type="text/javascript" src="js/components/table.js"></script>
 
     <script>
-
         M.AutoInit();
-
         const cloud_connector_url = window.localStorage.getItem('cloud_connector_url');
 
         if (cloud_connector_url.length > 0) {
             texts = i18n.create(i18n_es_texts)
             icons = i18n.create(i18n_icons)
-        
+
             cloud = new CloudConnector(cloud_connector_url);
+            system_status = new SystemStatus('cloud-connector/status', cloud, '.system-status', texts('system_status'), texts, icons);
+            system_status.render();
 
-            var searchParams = new URLSearchParams(window.location.search);
-
-            view_device = new ViewDevice(searchParams.get('id'), cloud, '.show-device', texts('device_status'), texts, icons);
-            view_device.render();
-
-            control_device = new ControlDevice('.control-device', searchParams.get('id'), cloud, texts('device_control'), texts, icons);
-            control_device.render();
+            connected_devices = new ConnectedDevices('devices', cloud, '.connected-devices', texts, icons);
+            connected_devices.render();
         } else {
-            window.location = 'index.html';
+            window.location = "index.html";
         }
+
       </script>
   </body>
 </html>

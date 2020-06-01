@@ -40,6 +40,7 @@ class ControlDevice extends ComponentWithSleep {
             <div class="payload-form col s12 m12 l5">
                 <form id="payload-form" class="col s12">
                     <div class="input-field col s12">
+                        <i class="material-icons prefix">edit</i>
                         <textarea id="payload" class="text-darken-2 materialize-textarea"></textarea>
                         <label for="payload">${this.i18n('payload_to_send')}</label>
                     </div>

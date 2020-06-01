@@ -1,0 +1,33 @@
+.connection-setup .logo i {
+    font-size: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.connection-setup .content {
+    -webkit-box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    box-shadow: 0 1px 1px rgba(0,0,0,.05);
+    border-radius: 4px;
+    border: 1px solid #2b3840;
+    background-color: #27333a;
+    padding: 8px;
+}
+
+.connection-setup #connection_setup_form .input-field label{
+    color: var(--body-text-color);
+}
+
+.connection-setup #connection_setup_form .input-field input {
+    color: var(--body-text-color);
+}
+
+.connection-setup #connection_setup_form .input-field input:focus + label {
+    color: var(--body-text-color);
+}
+
+.connection-setup #connection_setup_form .input-field input:focus {
+    border-bottom: 1px solid #4D5A62;
+    box-shadow: 0 1px 0 0 #4D5A62;
+}

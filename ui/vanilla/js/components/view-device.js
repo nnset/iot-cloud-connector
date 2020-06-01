@@ -37,8 +37,8 @@ class ViewDevice extends ComponentWithPreloader {
           }
 
           var html = `
-            <section class="device-status">
-              <h2>${this.title}</h2>
+            <section class="view-device">
+              <h2>${this.title} <small>(${this.device_id})</small></h2>
               <div class="metrics row">
                 ${metrics}
               <div>
