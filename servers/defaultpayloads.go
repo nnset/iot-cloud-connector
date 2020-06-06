@@ -15,6 +15,7 @@ type cloudConnectorStatusPayload struct {
 		SystemMemory              uint                `json:"system_memory"`
 		AllocatedMemory           uint                `json:"allocated_memory"`
 		HeapAllocatedMemory       uint                `json:"heap_allocated_memory"`
+		SSESubscribers            uint                `json:"sse_subscribers"`
 	} `json:"metrics"`
 	Units struct {
 		ServerCurrentState        string `json:"server_current_state"`
@@ -30,6 +31,7 @@ type cloudConnectorStatusPayload struct {
 		SystemMemory              string `json:"system_memory"`
 		AllocatedMemory           string `json:"allocated_memory"`
 		HeapAllocatedMemory       string `json:"heap_allocated_memory"`
+		SSESubscribers            string `json:"sse_subscribers"`
 	} `json:"units"`
 }
 

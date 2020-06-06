@@ -40,5 +40,9 @@ class CloudConnector {
 
   show_device_path(device_id) {
     return `devices/${device_id}/show`;
-  }  
+  }
+
+  subscribe_to_system_status_sse_url() {
+    return `${this.api_url}/cloud-connector/status/stream`;
+  }
 }

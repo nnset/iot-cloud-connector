@@ -88,6 +88,70 @@ TODO
 |  **units**.allocated_memory               | string | "Mb" |
 |  **units**.heap_allocated_memory          | string | "Mb" |
 
+
+#### Current Status Stream (SSE)
+
+> **GET** `/cloud-connector/status/stream`
+
+Data Stream ([Server Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)) with changes on Cloud Connector server.
+
+**Headers**
+
+Response will have these headers:
+
+    "Connection: keep-alive"
+    "Cache-Control: no-cache"
+    "Content-Type: text/event-stream"
+
+**Success**
+
+> HTTP/1.1 **200** OK
+
+Each Event will be like this :
+
+```
+id: "" (optional)
+retry: 1 (optional)
+event: system_status
+data: {"metric":"go_routines","value":"17"}
+
+```
+
+| Field   |  Type  | Description |
+| ------  | ------ |------ |
+|  id     | string | Event ID. |
+|  retry  | integer | Event retry number. |
+|  event  | string | Event's name. |
+|  data   | string | Event's payload. |
+
+
+**Client (javascript) example**
+
+Read [Mozilla Docs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) regarding **Server Sent Events** class.
+
+Also [this article](https://community.hetzner.com/tutorials/real-time-apps-with-go-and-reactjs) from Hetzner, about SSE using Go, helped a lot.
+
+```javascript
+
+const evtSource = new EventSource('http://localhost:9090/cloud-connector/status/stream');
+
+evtSource.onerror = function(error) {
+  console.error("EventSource failed:", error);
+};
+
+evtSource.addEventListener("system_status", function(e) {
+  const data = JSON.parse(e.data);
+
+  if (data.metric) {
+    console.error(`Metric ${data.metric} changed to ${data.value}.`);
+  }
+})
+
+evtSource.onopen = function() {
+  console.log("Connection to server opened.");
+};
+```
+
 ### IoT Devices
 
 #### Device status

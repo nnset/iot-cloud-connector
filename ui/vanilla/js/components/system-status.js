@@ -7,8 +7,6 @@ class SystemStatus extends ComponentWithPreloader {
     this.container_selector = container_selector;
     this.i18n = i18n;
     this.icons = icons;
-    this.refresh_handler_id = null;
-    this.refresh_interval = 3000;
   }
 
   render() {
@@ -45,7 +43,7 @@ class SystemStatus extends ComponentWithPreloader {
           () => {
             container.innerHTML = '';
             container.insertAdjacentHTML('afterbegin', html);
-            this.__refresh(this.refresh_interval)
+            this.__subscribe_to_stream(this.container_selector)
           }
         );
 
@@ -53,17 +51,20 @@ class SystemStatus extends ComponentWithPreloader {
       });
     }
 
-    __refresh(interval) {
-      this.refresh_handler_id = setInterval(() => {
-        this.cloud_connector.getData(this.fetch_data_path)
-        .then(data => {  
+    __subscribe_to_stream(container_selector) {
+      const event_source = new EventSource(this.cloud_connector.subscribe_to_system_status_sse_url());
+ 
+      event_source.onerror = function(error) {
+        console.error("EventSource failed: ", error);
+      };
 
-          for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {
-            var metric_dom = document.body.querySelector(`${this.container_selector} [data-metric="${metric_key}"] .value`);
-                metric_dom.innerHTML = metric_value;
-          }
-
-        });
-      }, interval);
+      event_source.addEventListener("system_status", function(e) {
+        const data = JSON.parse(e.data);
+        
+        if (data.metric) {
+          var metric_dom = document.body.querySelector(`${container_selector} [data-metric="${data.metric}"] .value`);
+          metric_dom.innerHTML = data.value;
+        }
+      });
     }
 }

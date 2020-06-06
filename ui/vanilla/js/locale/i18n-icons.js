@@ -15,6 +15,7 @@ i18n_icons = {
     "heap_allocated_memory": "memory",
     "send_command": "fast_forward",
     "send_query": "fast_rewind",
+    "sse_subscribers": "sync",
     "view_device": "cloud"
   }
 };

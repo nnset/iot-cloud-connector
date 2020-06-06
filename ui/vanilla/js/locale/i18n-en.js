@@ -23,6 +23,7 @@ i18n_en_texts = {
     "device_status": "Device status",
     "device_control": "Device control",
     "last_connection": "Last connection",
+    "sse_subscribers": "SSE subscribers",
     "view_device": "View",
     "actions": "Actions"
   }

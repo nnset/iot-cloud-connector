@@ -8,14 +8,16 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
 // DefaultCloudConnectorAPI We provide a simple REST API to interact with CloudConenctor.
-// These are the default available endpoints:
+// Available endpoints:
 // - {GET} /cloud-connector/status
+// - {GET} /cloud-connector/status/stream
 // - {GET} /devices/status/{deviceID}
 // - {GET} /devices
 // - {POST} /devices/command/{deviceID}
@@ -53,11 +55,8 @@ func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error
 	listenAddr := fmt.Sprintf("%s:%s", api.address, api.port)
 
 	api.httpServer = &http.Server{
-		Addr:         listenAddr,
-		Handler:      api.router(),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
+		Addr:    listenAddr,
+		Handler: api.router(),
 	}
 
 	api.cloudConnector.log.Debugf("Default REST API available at %s:%s", api.address, api.port)
@@ -75,6 +74,7 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/cloud-connector/status", api.status).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/cloud-connector/status/stream", api.systemMetricsStream).Methods(http.MethodGet)
 	router.HandleFunc("/devices/{deviceID}/show", api.showDevice).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/devices", api.devicesList).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods(http.MethodPost, http.MethodOptions)
@@ -130,6 +130,7 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 				SystemMemory              uint                `json:"system_memory"`
 				AllocatedMemory           uint                `json:"allocated_memory"`
 				HeapAllocatedMemory       uint                `json:"heap_allocated_memory"`
+				SSESubscribers            uint                `json:"sse_subscribers"`
 			}{
 				Connections:               api.cloudConnector.OpenConnections(),
 				Uptime:                    api.cloudConnector.Uptime(""),
@@ -144,6 +145,7 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 				AllocatedMemory:           api.cloudConnector.AllocatedMemory(),
 				HeapAllocatedMemory:       api.cloudConnector.HeapAllocatedMemory(),
 				ServerCurrentState:        api.cloudConnector.State(),
+				SSESubscribers:            api.cloudConnector.SystemMetricsStreamSubscriptions(),
 			},
 			Units: struct {
 				ServerCurrentState        string `json:"server_current_state"`
@@ -159,6 +161,7 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 				SystemMemory              string `json:"system_memory"`
 				AllocatedMemory           string `json:"allocated_memory"`
 				HeapAllocatedMemory       string `json:"heap_allocated_memory"`
+				SSESubscribers            string `json:"sse_subscribers"`
 			}{
 				ServerCurrentState:        "",
 				Connections:               "",
@@ -173,6 +176,7 @@ func (api *DefaultCloudConnectorAPI) status(w http.ResponseWriter, r *http.Reque
 				SystemMemory:              "Mb",
 				AllocatedMemory:           "Mb",
 				HeapAllocatedMemory:       "Mb",
+				SSESubscribers:            "",
 			},
 		},
 	)
@@ -275,6 +279,54 @@ func (api *DefaultCloudConnectorAPI) responseFromDevice(w http.ResponseWriter, c
 	json.NewEncoder(w).Encode(payload)
 }
 
+func (api *DefaultCloudConnectorAPI) systemMetricsStream(w http.ResponseWriter, r *http.Request) {
+	api.cloudConnector.log.Debug("systemMetricsStream subscription")
+
+	flusher, ok := w.(http.Flusher)
+
+	if !ok {
+		fmt.Println("Streaming unsupported")
+		// TODO
+		return
+	}
+
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Type", "text/event-stream")
+
+	messageChannel := make(chan SystemMetricChangedMessage)
+
+	api.cloudConnector.SubscribeToSystemMetricsStream(messageChannel)
+
+	for {
+		select {
+		case systemMetricChangedMessage := <-messageChannel:
+
+			// TODO check for errors
+			payload, _ := json.Marshal(systemMetricChangedMessage)
+
+			w.Write(api.formatSSE("", "system_status", string(payload), 1))
+			flusher.Flush()
+		case <-r.Context().Done():
+			api.cloudConnector.UnSubscribeToSystemMetricsStream(messageChannel)
+			return
+		}
+	}
+}
+
+func (api *DefaultCloudConnectorAPI) formatSSE(id, event, data string, retry int) []byte {
+
+	eventPayload := "id: " + id + "\n" + "retry: " + string(retry) + "\n" + "event: " + event + "\n"
+
+	dataLines := strings.Split(data, "\n")
+
+	for _, line := range dataLines {
+		eventPayload = eventPayload + "data: " + line + "\n"
+	}
+
+	return []byte(eventPayload + "\n")
+}
+
 func (api *DefaultCloudConnectorAPI) rawRequestBody(r *http.Request) string {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
@@ -282,10 +334,8 @@ func (api *DefaultCloudConnectorAPI) rawRequestBody(r *http.Request) string {
 	return buf.String()
 }
 
-/*
-Stop Stops the API server
-@see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
-*/
+// Stop Stops the API server
+// @see https://marcofranssen.nl/go-webserver-with-graceful-shutdown/
 func (api *DefaultCloudConnectorAPI) Stop() {
 	api.cloudConnector.log.Debug("Shutting down defaultCloudConnectorAPI")
 
@@ -293,6 +343,8 @@ func (api *DefaultCloudConnectorAPI) Stop() {
 	defer cancel()
 
 	api.httpServer.SetKeepAlivesEnabled(false)
+
+	// TODO close all systemMetricsStream SSE connections
 
 	if err := api.httpServer.Shutdown(ctx); err != nil {
 		api.cloudConnector.log.Fatalf("Could not gracefully shutdown defaultCloudConnectorAPI http server %v\n", err)

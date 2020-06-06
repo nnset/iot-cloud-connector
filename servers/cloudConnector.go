@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -24,18 +25,27 @@ import (
 //  - syscall.SIGTERM
 //  - syscall.SIGKILL
 type CloudConnector struct {
-	id                      string
-	address                 string
-	port                    string
-	network                 string
-	startTime               int64
-	log                     *logrus.Logger
-	serverShutdownWaitGroup sync.WaitGroup
-	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
-	statusAPI               CloudConnectorAPIInterface
-	state                   CloudConnectorState
-	connectionsStats        storage.DeviceConnectionsStatsStorageInterface
-	auth                    APIAuthMiddleWare
+	id                               string
+	address                          string
+	port                             string
+	network                          string
+	startTime                        int64
+	log                              *logrus.Logger
+	serverShutdownWaitGroup          sync.WaitGroup
+	connectionsHandler               connectionshandlers.ConnectionsHandlerInterface
+	statusAPI                        CloudConnectorAPIInterface
+	state                            CloudConnectorState
+	connectionsStats                 storage.DeviceConnectionsStatsStorageInterface
+	auth                             APIAuthMiddleWare
+	systemMetricsStreamTicker        *time.Ticker
+	systemMetricsStreamTickerDone    chan bool
+	systemMetricsStreamSubscriptions map[chan SystemMetricChangedMessage]bool
+}
+
+// SystemMetricChangedMessage message send to subscribed channels when a system metric changes
+type SystemMetricChangedMessage struct {
+	Metric string `json:"metric"`
+	Value  string `json:"value"`
 }
 
 // CloudConnectorState Server's state
@@ -58,14 +68,16 @@ func NewCloudConnector(
 	connectionsStats storage.DeviceConnectionsStatsStorageInterface,
 	statusAPI CloudConnectorAPIInterface) *CloudConnector {
 	return &CloudConnector{
-		id:                      uuid.New().String(),
-		log:                     log,
-		serverShutdownWaitGroup: sync.WaitGroup{},
-		connectionsHandler:      connectionsHandler,
-		statusAPI:               statusAPI,
-		startTime:               time.Now().Unix(),
-		state:                   CloudConnectorCreated,
-		connectionsStats:        connectionsStats,
+		id:                               uuid.New().String(),
+		log:                              log,
+		serverShutdownWaitGroup:          sync.WaitGroup{},
+		connectionsHandler:               connectionsHandler,
+		statusAPI:                        statusAPI,
+		startTime:                        time.Now().Unix(),
+		state:                            CloudConnectorCreated,
+		connectionsStats:                 connectionsStats,
+		systemMetricsStreamSubscriptions: make(map[chan SystemMetricChangedMessage]bool),
+		systemMetricsStreamTickerDone:    make(chan bool),
 	}
 }
 
@@ -86,6 +98,10 @@ func (cc *CloudConnector) Start() {
 		go cc.statusAPI.Start(cc)
 	}
 
+	cc.systemMetricsStreamTicker = time.NewTicker(1 * time.Second)
+
+	go cc.systemMetricsStream()
+
 	cc.state = CloudConnectorStarted
 
 	cc.serverShutdownWaitGroup.Wait()
@@ -103,7 +119,7 @@ func (cc *CloudConnector) waitForShutdownSignal() {
 	go func() {
 		sig := <-operatingSystemSignal
 		cc.log.Debugf("Signal received : %s", sig)
-		cc.log.Debug("Shutting down main")
+		cc.log.Debug("Shutting down CloudConnector")
 
 		cc.serverShutdownWaitGroup.Done()
 	}()
@@ -111,6 +127,9 @@ func (cc *CloudConnector) waitForShutdownSignal() {
 
 func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandlerShutdownIsComplete chan bool) {
 	shutdownConnectionsHandler <- true
+
+	cc.systemMetricsStreamTickerDone <- true
+	cc.systemMetricsStreamTicker.Stop()
 
 	select {
 	case <-connectionsHandlerShutdownIsComplete:
@@ -129,6 +148,112 @@ func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandle
 	cc.log.Info("  Total received messages processed: ", cc.connectionsStats.TotalReceivedMessages())
 	cc.log.Info("  Total sent messages processed: ", cc.connectionsStats.TotalSentMessages())
 	cc.log.Infof("  Uptime: %d seconds", cc.Uptime(""))
+}
+
+func (cc *CloudConnector) systemMetricsStream() {
+	// TODO instead of looking for changes on each metric, create multiple channels to connect
+	// CloudConnector and ConnectionsHandler
+
+	openConnections := cc.OpenConnections()
+	receivedMessages := cc.ReceivedMessages("")
+	sentMessages := cc.SentMessages("")
+	systemMemory := cc.SystemMemory()
+	allocatedMemory := cc.AllocatedMemory()
+	heapMemory := cc.HeapAllocatedMemory()
+	sseSubscribers := len(cc.systemMetricsStreamSubscriptions)
+	goRoutines := cc.GoRoutinesSpawned()
+	commandsWaiting := cc.CommandsWaiting()
+	queriesWaiting := cc.QueriesWaiting()
+
+	for {
+		select {
+		case <-cc.systemMetricsStreamTickerDone:
+			return
+		case <-cc.systemMetricsStreamTicker.C:
+			if openConnections != cc.OpenConnections() {
+				cc.log.Debugf("OpenConnections changed from %d to %d", openConnections, cc.OpenConnections())
+				openConnections = cc.OpenConnections()
+				cc.publishSystemMetricsChange("connections", strconv.Itoa(int(openConnections)))
+			}
+
+			if receivedMessages != cc.ReceivedMessages("") {
+				cc.log.Debugf("ReceivedMessages changed from %d to %d", receivedMessages, cc.ReceivedMessages(""))
+				receivedMessages = cc.ReceivedMessages("")
+				// TODO received_messages_per_second
+				cc.publishSystemMetricsChange("received_messages", strconv.Itoa(int(receivedMessages)))
+			}
+
+			if sentMessages != cc.SentMessages("") {
+				cc.log.Debugf("SentMessages changed from %d to %d", sentMessages, cc.SentMessages(""))
+				sentMessages = cc.SentMessages("")
+				// TODO sent_messages_per_second
+				cc.publishSystemMetricsChange("sent_messages", strconv.Itoa(int(sentMessages)))
+			}
+
+			if systemMemory != cc.SystemMemory() {
+				cc.log.Debugf("SystemMemory changed from %d to %d", systemMemory, cc.SystemMemory())
+				systemMemory = cc.SystemMemory()
+				cc.publishSystemMetricsChange("system_memory", strconv.Itoa(int(systemMemory)))
+			}
+
+			if allocatedMemory != cc.AllocatedMemory() {
+				cc.log.Debugf("AllocatedMemory Changed from %d to %d", allocatedMemory, cc.AllocatedMemory())
+				allocatedMemory = cc.AllocatedMemory()
+				cc.publishSystemMetricsChange("allocated_memory", strconv.Itoa(int(allocatedMemory)))
+			}
+
+			if heapMemory != cc.HeapAllocatedMemory() {
+				cc.log.Debugf("HeapAllocatedMemory changed from %d to %d", heapMemory, cc.HeapAllocatedMemory())
+				heapMemory = cc.HeapAllocatedMemory()
+				cc.publishSystemMetricsChange("heap_allocated_memory", strconv.Itoa(int(heapMemory)))
+			}
+
+			if sseSubscribers != len(cc.systemMetricsStreamSubscriptions) {
+				cc.log.Debugf("systemMetricsStreamSubscriptions Changed from %d to %d", sseSubscribers, len(cc.systemMetricsStreamSubscriptions))
+				sseSubscribers = len(cc.systemMetricsStreamSubscriptions)
+				cc.publishSystemMetricsChange("sse_subscribers", strconv.Itoa(int(sseSubscribers)))
+			}
+
+			if goRoutines != cc.GoRoutinesSpawned() {
+				cc.log.Debugf("GoRoutinesSpawned Changed from %d to %d", goRoutines, cc.GoRoutinesSpawned())
+				goRoutines = cc.GoRoutinesSpawned()
+				cc.publishSystemMetricsChange("go_routines", strconv.Itoa(int(goRoutines)))
+			}
+
+			if commandsWaiting != cc.CommandsWaiting() {
+				cc.log.Debugf("CommandsWaiting Changed from %d to %d", commandsWaiting, cc.CommandsWaiting())
+				commandsWaiting = cc.CommandsWaiting()
+				cc.publishSystemMetricsChange("commands_waiting", strconv.Itoa(int(commandsWaiting)))
+			}
+
+			if queriesWaiting != cc.QueriesWaiting() {
+				cc.log.Debugf("QueriesWaiting Changed from %d to %d", queriesWaiting, cc.QueriesWaiting())
+				queriesWaiting = cc.CommandsWaiting()
+				cc.publishSystemMetricsChange("commands_waiting", strconv.Itoa(int(queriesWaiting)))
+			}
+		}
+	}
+}
+
+func (cc *CloudConnector) publishSystemMetricsChange(metricName, value string) {
+	message := SystemMetricChangedMessage{
+		metricName, value,
+	}
+
+	for messageChannel := range cc.systemMetricsStreamSubscriptions {
+		messageChannel <- message
+	}
+}
+
+// SubscribeToSystemMetricsStream Subscribe a SystemMetricChangedMessage channel to receive messages
+// every time a System Metric changes.
+func (cc *CloudConnector) SubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
+	cc.systemMetricsStreamSubscriptions[channel] = true
+}
+
+// UnSubscribeToSystemMetricsStream UnSubscribe a SystemMetricChangedMessage channel
+func (cc *CloudConnector) UnSubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
+	delete(cc.systemMetricsStreamSubscriptions, channel)
 }
 
 // ID CloudConnector's uuid
@@ -255,4 +380,9 @@ func (cc *CloudConnector) QueriesWaiting() uint {
 // CommandsWaiting How many commands messages are still waiting for the response of the IoT Device
 func (cc *CloudConnector) CommandsWaiting() uint {
 	return cc.connectionsHandler.CommandsWaiting()
+}
+
+// SystemMetricsStreamSubscriptions How many channels are subscrives to receice System Metrics updates
+func (cc *CloudConnector) SystemMetricsStreamSubscriptions() uint {
+	return uint(len(cc.systemMetricsStreamSubscriptions))
 }

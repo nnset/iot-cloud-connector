@@ -126,9 +126,7 @@ func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
 
 	s := NewCloudConnector(log, &connectionsHandler, inMemoryConnectionsStats, nil)
 
-	expectedIDs := []string{"device_abc", "device_xyz"}
-
-	assert.DeepEqual(t, expectedIDs, s.ConnectedDevices())
+	assert.Equal(t, 2, len(s.ConnectedDevices()))
 }
 
 func TestQueriesWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
@@ -191,4 +189,68 @@ func TestSendingAQueryToADeviceThatIsNotConnectedShouldReturnAnError(t *testing.
 	assert.Equal(t, "", response)
 	assert.Equal(t, 404, responseCode)
 	assert.Error(t, err, "Device not connected")
+}
+
+func TestSubscribingToSystemMetricsStreamShouldIncreaseTheCountOfSubscribers(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
+
+	messageChannel := make(chan SystemMetricChangedMessage)
+
+	s.SubscribeToSystemMetricsStream(messageChannel)
+
+	assert.Equal(t, uint(1), s.SystemMetricsStreamSubscriptions())
+}
+
+func TestUnSubscribingToSystemMetricsStreamShouldDecreaseTheCountOfSubscribers(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
+
+	messageChannel := make(chan SystemMetricChangedMessage)
+
+	s.SubscribeToSystemMetricsStream(messageChannel)
+	assert.Equal(t, uint(1), s.SystemMetricsStreamSubscriptions())
+
+	s.UnSubscribeToSystemMetricsStream(messageChannel)
+	assert.Equal(t, uint(0), s.SystemMetricsStreamSubscriptions())
+}
+
+func TestSubscriptionsToSystemMetricStreamShoudReceiveMessages(t *testing.T) {
+	log := createLogger()
+
+	connectionsHandler := dummyConnectionsHandler{}
+
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), nil)
+
+	defer func() {
+		s.Kill()
+		time.Sleep(20 * time.Millisecond)
+	}()
+
+	go s.Start()
+	time.Sleep(20 * time.Millisecond)
+
+	messageChannel := make(chan SystemMetricChangedMessage)
+
+	s.SubscribeToSystemMetricsStream(messageChannel)
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		messageChannel2 := make(chan SystemMetricChangedMessage)
+		s.SubscribeToSystemMetricsStream(messageChannel2)
+	}()
+
+	select {
+	case m := <-messageChannel:
+		assert.Equal(t, "sse_subscribers", m.Metric)
+	case <-time.After(3 * time.Second):
+		// Timeout, no message received
+		assert.Equal(t, 0, 1)
+	}
 }
