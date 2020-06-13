@@ -164,6 +164,7 @@ func (cc *CloudConnector) systemMetricsStream() {
 	goRoutines := cc.GoRoutinesSpawned()
 	commandsWaiting := cc.CommandsWaiting()
 	queriesWaiting := cc.QueriesWaiting()
+	uptime := cc.Uptime("")
 
 	for {
 		select {
@@ -230,6 +231,11 @@ func (cc *CloudConnector) systemMetricsStream() {
 				cc.log.Debugf("QueriesWaiting Changed from %d to %d", queriesWaiting, cc.QueriesWaiting())
 				queriesWaiting = cc.CommandsWaiting()
 				cc.publishSystemMetricsChange("commands_waiting", strconv.Itoa(int(queriesWaiting)))
+			}
+
+			if cc.Uptime("") > uptime+60 {
+				uptime = cc.Uptime("")
+				cc.publishSystemMetricsChange("uptime", strconv.Itoa(int(uptime)))
 			}
 		}
 	}
