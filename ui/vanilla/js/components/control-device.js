@@ -47,12 +47,12 @@ class ControlDevice extends ComponentWithSleep {
 
                     <div class="col s12 form-buttons ">
                         <div class="submit-command col s6">
-                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="action">${this.i18n('send_as_command')}
+                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="command">${this.i18n('send_as_command')}
                                 <i class="material-icons right">${this.icons("send_command")}</i>
                             </button>
                         </div>
                         <div class="submit-query col s6">
-                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="action">${this.i18n('send_as_query')}
+                            <button class="blue darken-2 btn waves-effect waves-light btn-small" type="submit" name="query">${this.i18n('send_as_query')}
                                 <i class="material-icons right">${this.icons("send_query")}</i>
                             </button>
                         </div>
@@ -74,32 +74,43 @@ class ControlDevice extends ComponentWithSleep {
     container.insertAdjacentHTML('afterbegin', html);
 
     const form = document.getElementById('payload-form');
+
     form.addEventListener('submit', (submit_event) => {
-        this.__render_spinner();
+      this.__render_spinner();
 
-        submit_event.stopPropagation();
-        submit_event.preventDefault();
+      submit_event.stopPropagation();
+      submit_event.preventDefault();
 
-        this.__payload_submit(this.cloud_connector, this.device_id)
+      this.__payload_submit(this.cloud_connector, this.device_id, submit_event.submitter.name)
     });
 
     return html;
   }
 
-  __payload_submit(cloud_connector, device_id) {
+  __payload_submit(cloud_connector, device_id, action_type) {
     var form_data = new FormData(document.getElementById('payload-form'));
 
-    cloud_connector.send_command(device_id, form_data).then(data => {
-        var responses = document.getElementById('responses');
+    if (action_type === "command") {
+      cloud_connector.send_command(device_id, form_data).then(data => {
+        this.__append_response(data);
+      });
+    } else {
+      cloud_connector.send_query(device_id, form_data).then(data => {
+        this.__append_response(data);
+      });
+    }
+  }
 
-        responses.innerHTML = responses.innerHTML + JSON.stringify(data) + "\n";
-        M.updateTextFields();
-        M.textareaAutoResize(responses);
+  __append_response(data) {
+    var responses = document.getElementById('responses');
+    
+    responses.innerHTML = responses.innerHTML + JSON.stringify(data) + "\n";
+    M.updateTextFields();
+    M.textareaAutoResize(responses);
 
-        this.__sleep(300).then(() => {
-            var spinner = document.body.querySelector(`${this.container_selector} .request-spinner`);
-            spinner.style.opacity = '0';
-        });
+    this.__sleep(300).then(() => {
+      var spinner = document.body.querySelector(`${this.container_selector} .request-spinner`);
+      spinner.style.opacity = '0';
     });
   }
 
