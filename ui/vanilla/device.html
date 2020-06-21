@@ -8,6 +8,8 @@
     <link type="text/css" rel="stylesheet" href="css/components/system-status.css"  media="screen,projection"/>
     <link type="text/css" rel="stylesheet" href="css/components/control-device.css"  media="screen,projection"/>
 
+    <link rel="icon" type="image/png"  href="imgs/favicon.png">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8">
     <title>Cloud Connector Vanilla</title>
@@ -29,22 +31,44 @@
     </nav>
 
     <ul id="slide-out" class="sidenav">
-        <li><a class="subheader">IoT Cloud Connector</a></li>
+        <li>
+            <div>
+                <div class="logo">
+                    <i class="material-icons">group_work</i>
+                </div>
+                <div class="title">
+                    IoT Cloud Connector
+                </div>
+            </div>
+        </li>
         <li>
             <a href="dashboard.html">
                 <i class="material-icons">insert_chart</i>Dashboard
             </a>
         </li>
+        <li><div class="divider"></div></li>
         <li><a class="subheader">Settings</a></li>
         <li>
             <a href="index.html">
                 <i class="material-icons">sim_card</i>Setup connection
             </a>
         </li>
+        <li><div class="divider"></div></li>
+        <li><a class="subheader">Interface</a></li>
+        <li><a class="subheader">Language</a></li>
+        <li class="locale">
+            <a href="#" data-locale="es">
+                <i class="material-icons">language</i>Spanish
+            </a>
+        </li>
+        <li class="locale">
+            <a href="#" data-locale="en">
+                <i class="material-icons">language</i>English
+            </a>
+        </li>
     </ul>
 
     <div class="container main-section">
-        
         <div class="section show-device"></div>
 
         <div class="section control-device">
@@ -63,6 +87,8 @@
         </div>
     </footer>
 
+    <script type="text/javascript" src="js/components/side-navigation.js"></script>
+    <script type="text/javascript" src="js/components/locale-loader.js"></script>
     <script type="text/javascript" src="js/i18n.min.js"></script>
     <script type="text/javascript" src="js/locale/i18n-en.js"></script>
     <script type="text/javascript" src="js/locale/i18n-es.js"></script>
@@ -76,27 +102,32 @@
     <script type="text/javascript" src="js/components/control-device.js"></script>
 
     <script>
+        window.onload = (event) => {
+            M.AutoInit();
+            new SideNavigation();
+            const localeLoader = new LocaleLoader();
+            const searchParams = new URLSearchParams(window.location.search);
+            
+            const cloud_connector_url = window.localStorage.getItem('cloud_connector_url');
+            const device_id = searchParams.get('id');
+            const locale = window.localStorage.getItem('current_locale') || 'en';
 
-        M.AutoInit();
+            if (cloud_connector_url.length > 0 && device_id && device_id.length > 0) {
 
-        const cloud_connector_url = window.localStorage.getItem('cloud_connector_url');
+                texts = localeLoader.texts();
+                icons = i18n.create(i18n_icons);
+            
+                cloud = new CloudConnector(cloud_connector_url);
 
-        if (cloud_connector_url.length > 0) {
-            texts = i18n.create(i18n_es_texts)
-            icons = i18n.create(i18n_icons)
-        
-            cloud = new CloudConnector(cloud_connector_url);
+                view_device = new ViewDevice(device_id, cloud, '.show-device', texts('device_status'), texts, icons);
+                view_device.render();
 
-            var searchParams = new URLSearchParams(window.location.search);
-
-            view_device = new ViewDevice(searchParams.get('id'), cloud, '.show-device', texts('device_status'), texts, icons);
-            view_device.render();
-
-            control_device = new ControlDevice('.control-device', searchParams.get('id'), cloud, texts('device_control'), texts, icons);
-            control_device.render();
-        } else {
-            window.location = 'index.html';
-        }
+                control_device = new ControlDevice('.control-device', device_id, cloud, texts('device_control'), texts, icons);
+                control_device.render();
+            } else {
+                window.location = 'index.html';
+            }
+        };
       </script>
   </body>
 </html>

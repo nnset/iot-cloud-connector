@@ -6,6 +6,8 @@
     <link type="text/css" rel="stylesheet" href="css/vanilla.css"  media="screen,projection"/>    
     <link type="text/css" rel="stylesheet" href="css/components/connection-setup.css"  media="screen,projection"/>
 
+    <link rel="icon" type="image/png"  href="imgs/favicon.png">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8">
     <title>Cloud Connector Vanilla</title>
@@ -64,20 +66,21 @@
         </div>
     </footer>
 
+    <script type="text/javascript" src="js/components/locale-loader.js"></script>
     <script type="text/javascript" src="js/i18n.min.js"></script>
     <script type="text/javascript" src="js/locale/i18n-en.js"></script>
     <script type="text/javascript" src="js/locale/i18n-es.js"></script>
-    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>    
+    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>
     <script type="text/javascript" src="js/materialize.min.js"></script>
     <script type="text/javascript" src="js/components/connection-setup.js"></script>
 
     <script>
+        window.onload = (event) => {
+            const localeLoader = new LocaleLoader();
 
-        M.AutoInit();
-
-        texts = i18n.create(i18n_es_texts)
-
-        setup = new ConnectionSetup(texts);
+            M.AutoInit();
+            new ConnectionSetup(localeLoader.texts());
+        };
       </script>
   </body>
 </html>
