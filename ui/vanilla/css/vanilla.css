@@ -54,3 +54,7 @@ h1, h2, h3, h4, h5, h6 {
 .sidenav .locale a.selected{
     font-weight: 800;
 }
+
+.nav-wrapper .host {
+    font-size: calc(var(--base-text-size) * 0.8);
+}

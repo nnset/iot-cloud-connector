@@ -25,6 +25,10 @@
             <a href="dashboard.html">
                 IoT Cloud Connector
             </a>
+            
+            <ul class="right">
+                <li class="host"></li>
+            </ul>
         </div>
     </nav>
 
@@ -85,12 +89,13 @@
         </div>
     </footer>
 
+    <script type="text/javascript" src="js/components/top-navigation.js"></script>
     <script type="text/javascript" src="js/components/side-navigation.js"></script>
     <script type="text/javascript" src="js/components/locale-loader.js"></script>
     <script type="text/javascript" src="js/i18n.min.js"></script>
     <script type="text/javascript" src="js/locale/i18n-en.js"></script>
     <script type="text/javascript" src="js/locale/i18n-es.js"></script>
-    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>    
+    <script type="text/javascript" src="js/locale/i18n-icons.js"></script>
     <script type="text/javascript" src="js/materialize.min.js"></script>
     <script type="text/javascript" src="js/network/cloud-connector.js"></script>
     <script type="text/javascript" src="js/components/component-with-sleep.js"></script>
@@ -104,6 +109,7 @@
         window.onload = (event) => {
             M.AutoInit();
             new SideNavigation();
+            new TopNavigation();
             const localeLoader = new LocaleLoader();
 
             const cloud_connector_url = window.localStorage.getItem('cloud_connector_url');
