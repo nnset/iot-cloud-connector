@@ -64,6 +64,11 @@ func (c *DeviceConnection) RemoteAddress() string {
 	return c.remoteAddress
 }
 
+// CreatedAt Connection's creation timestamp
+func (c *DeviceConnection) CreatedAt() int64 {
+	return c.createdAt
+}
+
 // Uptime how many seconds the connection has been active
 func (c *DeviceConnection) Uptime() (int64, error) {
 	if c.createdAt == 0 {

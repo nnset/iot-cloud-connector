@@ -1,5 +1,7 @@
 package servers
 
+import "github.com/nnset/iot-cloud-connector/connections"
+
 type cloudConnectorStatusPayload struct {
 	Metrics struct {
 		ServerCurrentState        CloudConnectorState `json:"server_current_state"`
@@ -53,7 +55,7 @@ type showDevicePayload struct {
 }
 
 type devicesListPayload struct {
-	Devices []string `json:"devices"`
+	Devices []*connections.DeviceConnectionDTO `json:"devices"`
 }
 
 type deviceResponsePayload struct {

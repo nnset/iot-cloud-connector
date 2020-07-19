@@ -21,7 +21,7 @@ class ViewDevice extends ComponentWithPreloader {
 
       this.__render_preloader(container);
 
-      this.cloud_connector.getData(this.cloud_connector.show_device_path(this.device_id))
+      this.cloud_connector.get_data(this.cloud_connector.show_device_path(this.device_id))
         .then(data => {
 
           var metrics = '';
@@ -62,7 +62,7 @@ class ViewDevice extends ComponentWithPreloader {
 
     __refresh(interval) {
       this.refresh_handler_id = setInterval(() => {
-        this.cloud_connector.getData(this.cloud_connector.show_device_path(this.device_id))
+        this.cloud_connector.get_data(this.cloud_connector.show_device_path(this.device_id))
         .then(data => {  
 
           for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {

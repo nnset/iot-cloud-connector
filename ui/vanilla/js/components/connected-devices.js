@@ -18,8 +18,8 @@ class ConnectedDevices extends ComponentWithPreloader {
     
     this.__render_preloader(container);
 
-    this.cloud_connector.getData(this.fetch_data_path)
-      .then(data => {     
+    this.cloud_connector.get_data(this.fetch_data_path)
+      .then(data => {
         var tableData = this.__connectedDevicesToTableData(data);
 
         var html = `
@@ -44,11 +44,17 @@ class ConnectedDevices extends ComponentWithPreloader {
     var columns, rows = [];
 
     columns = [
-      'ID', this.i18n('last_connection'), this.i18n('actions')
+      'ID', this.i18n('name'), this.i18n('last_connection'), this.i18n('actions')
     ];
   
-    for (var [index, device_id] of Object.entries(data['devices'])) {
-      rows.push([device_id, 'N/A', this.__show_connected_device_link(device_id)]);
+    for (var [index, device] of Object.entries(data['devices'])) {
+      const lastConnection = (new Date(device['last_received_message'] * 1000));
+      rows.push([
+        device['device_id'],
+        device['device_name'],
+        lastConnection.toLocaleDateString() + ' ' + lastConnection.toLocaleTimeString(),
+        this.__show_connected_device_link(device['device_id'])]
+      );
     }
 
     return {

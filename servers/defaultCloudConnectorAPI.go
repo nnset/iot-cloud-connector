@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -76,7 +75,7 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router.HandleFunc("/cloud-connector/status", api.status).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/cloud-connector/status/stream", api.systemMetricsStream).Methods(http.MethodGet)
 	router.HandleFunc("/devices/{deviceID}/show", api.showDevice).Methods(http.MethodGet, http.MethodOptions)
-	router.HandleFunc("/devices", api.devicesList).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/devices", api.connectedDevices).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods(http.MethodPost, http.MethodOptions)
 	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods(http.MethodPost, http.MethodOptions)
 
@@ -229,9 +228,8 @@ func (api *DefaultCloudConnectorAPI) showDevice(w http.ResponseWriter, r *http.R
 	)
 }
 
-func (api *DefaultCloudConnectorAPI) devicesList(w http.ResponseWriter, r *http.Request) {
+func (api *DefaultCloudConnectorAPI) connectedDevices(w http.ResponseWriter, r *http.Request) {
 	devices := api.cloudConnector.ConnectedDevices()
-	sort.Strings(devices)
 
 	w.WriteHeader(http.StatusOK)
 

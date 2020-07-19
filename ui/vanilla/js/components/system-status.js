@@ -18,7 +18,7 @@ class SystemStatus extends ComponentWithPreloader {
 
     this.__render_preloader(container);
 
-    this.cloud_connector.getData(this.fetch_data_path)
+    this.cloud_connector.get_data(this.fetch_data_path)
       .then(data => {
         var metrics = '';
         for (var [metric_key, metric_value] of Object.entries(data['metrics'])) {

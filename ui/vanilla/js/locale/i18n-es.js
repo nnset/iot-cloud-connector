@@ -25,6 +25,7 @@ i18n_es_texts = {
     "last_connection": "Última conexión",
     "sse_subscribers": "Suscritos a SSE",
     "view_device": "Ver",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "name": "Nombre",
   }
 };

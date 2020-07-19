@@ -3,7 +3,7 @@ class CloudConnector {
     this.api_url = api_url;
   }
 
-  async getData(path = '') {
+  async get_data(path = '') {
     const response = await fetch(`${this.api_url}/${path}`, {
       method: 'GET',
       mode: 'cors',

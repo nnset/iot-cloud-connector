@@ -24,5 +24,5 @@ type DeviceConnectionsStorageInterface interface {
 
 	IsDeviceConnected(deviceID string) bool
 	OpenConnections() uint
-	ConnectedDevices() []string
+	ConnectedDevices() []*connections.DeviceConnectionDTO
 }

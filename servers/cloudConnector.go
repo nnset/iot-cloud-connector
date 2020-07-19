@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nnset/iot-cloud-connector/connections"
 	"github.com/nnset/iot-cloud-connector/connectionshandlers"
 	"github.com/nnset/iot-cloud-connector/storage"
 	"github.com/sirupsen/logrus"
@@ -301,7 +302,7 @@ func (cc *CloudConnector) OpenConnections() uint {
 }
 
 // ConnectedDevices Which IoT devices (IDs are displayed) are currently connected
-func (cc *CloudConnector) ConnectedDevices() []string {
+func (cc *CloudConnector) ConnectedDevices() []*connections.DeviceConnectionDTO {
 	return cc.activeConnections.ConnectedDevices()
 }
 

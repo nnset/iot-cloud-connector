@@ -119,15 +119,15 @@ func (storage *InMemoryDeviceConnectionsStorage) OpenConnections() uint {
 }
 
 // ConnectedDevices A list of connected Devices IDs
-func (storage *InMemoryDeviceConnectionsStorage) ConnectedDevices() []string {
+func (storage *InMemoryDeviceConnectionsStorage) ConnectedDevices() []*connections.DeviceConnectionDTO {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
-	devices := make([]string, len(storage.activeConnections))
+	devices := make([]*connections.DeviceConnectionDTO, len(storage.activeConnections))
 
 	i := 0
-	for id := range storage.activeConnections {
-		devices[i] = id
+	for _, connection := range storage.activeConnections {
+		devices[i] = connections.DeviceConnectionDTOFromDeviceConnection(connection)
 		i++
 	}
 

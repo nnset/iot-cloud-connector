@@ -25,7 +25,11 @@ class WebSocketClient:
             'ws://{0}:{1}/connect'.format(self.__server_host, self.__server_port),
             on_message=self.on_message,
             on_error=self.on_error,
-            header=["device_id: {0}".format(self.__web_socket_id)]
+            header=[
+                "Device-Id: {0}".format(self.__web_socket_id),
+                "Device-Name: {0}".format(self.client_name),
+                "User-Agent: websockets_client.py",
+            ]
         )
 
         print("  Connecting with device_id = {}".format(self.__web_socket_id))
