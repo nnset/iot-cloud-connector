@@ -26,7 +26,7 @@ func NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAge
 	return &DeviceConnection{
 		connectionID:  connectionID,
 		deviceID:      deviceID,
-		deviceName:    deviceID,
+		deviceName:    deviceName,
 		deviceType:    deviceType,
 		userAgent:     userAgent,
 		remoteAddress: remoteAddress,
