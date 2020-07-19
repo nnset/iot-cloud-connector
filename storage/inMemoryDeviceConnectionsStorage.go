@@ -27,7 +27,7 @@ func NewInMemoryDeviceConnectionsStorage() *InMemoryDeviceConnectionsStorage {
 }
 
 // Add Adds a new connection
-func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error {
+func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress string) error {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -38,7 +38,7 @@ func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, dev
 	}
 
 	storage.activeConnections[deviceID] =
-		connections.NewDeviceConnection(connectionID, deviceID, deviceType, userAgent, remoteAddress)
+		connections.NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress)
 
 	return nil
 }

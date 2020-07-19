@@ -10,6 +10,7 @@ import (
 type DeviceConnection struct {
 	connectionID                 string
 	deviceID                     string
+	deviceName                   string
 	deviceType                   string
 	userAgent                    string
 	remoteAddress                string
@@ -21,10 +22,11 @@ type DeviceConnection struct {
 }
 
 // NewDeviceConnection Creates a new instance of DeviceConnection
-func NewDeviceConnection(connectionID, deviceID, deviceType, userAgent, remoteAddress string) *DeviceConnection {
+func NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress string) *DeviceConnection {
 	return &DeviceConnection{
 		connectionID:  connectionID,
 		deviceID:      deviceID,
+		deviceName:    deviceID,
 		deviceType:    deviceType,
 		userAgent:     userAgent,
 		remoteAddress: remoteAddress,
@@ -33,67 +35,72 @@ func NewDeviceConnection(connectionID, deviceID, deviceType, userAgent, remoteAd
 }
 
 // ConnectionID Connection's UUID
-func (status *DeviceConnection) ConnectionID() string {
-	return status.connectionID
+func (c *DeviceConnection) ConnectionID() string {
+	return c.connectionID
 }
 
 // DeviceID Connection's Device UUID
-func (status *DeviceConnection) DeviceID() string {
-	return status.deviceID
+func (c *DeviceConnection) DeviceID() string {
+	return c.deviceID
+}
+
+// DeviceName Connection's Device name
+func (c *DeviceConnection) DeviceName() string {
+	return c.deviceName
 }
 
 // DeviceType Connection's Device type
-func (status *DeviceConnection) DeviceType() string {
-	return status.deviceType
+func (c *DeviceConnection) DeviceType() string {
+	return c.deviceType
 }
 
 // UserAgent Connection's user agent
-func (status *DeviceConnection) UserAgent() string {
-	return status.userAgent
+func (c *DeviceConnection) UserAgent() string {
+	return c.userAgent
 }
 
 // RemoteAddress Connection's remote address
-func (status *DeviceConnection) RemoteAddress() string {
-	return status.remoteAddress
+func (c *DeviceConnection) RemoteAddress() string {
+	return c.remoteAddress
 }
 
 // Uptime how many seconds the connection has been active
-func (status *DeviceConnection) Uptime() (int64, error) {
-	if status.createdAt == 0 {
+func (c *DeviceConnection) Uptime() (int64, error) {
+	if c.createdAt == 0 {
 		return -1, errors.New("Connection has not been established")
 	}
 
-	return time.Now().Unix() - status.createdAt, nil
+	return time.Now().Unix() - c.createdAt, nil
 }
 
 // LastReceivedMessageTimeStamp When was the last time when a message was received from the connected IoT device (unix time)
-func (status *DeviceConnection) LastReceivedMessageTimeStamp() int64 {
-	return status.lastReceivedMessageTimeStamp
+func (c *DeviceConnection) LastReceivedMessageTimeStamp() int64 {
+	return c.lastReceivedMessageTimeStamp
 }
 
 // LastSentMessageTimeStamp When was the last time when a message was sent to the connected IoT device (unix time)
-func (status *DeviceConnection) LastSentMessageTimeStamp() int64 {
-	return status.lastSentMessageTimeStamp
+func (c *DeviceConnection) LastSentMessageTimeStamp() int64 {
+	return c.lastSentMessageTimeStamp
 }
 
 // ReceivedMessages How many messages have were received from the connected IoT device
-func (status *DeviceConnection) ReceivedMessages() uint {
-	return status.receivedMessages
+func (c *DeviceConnection) ReceivedMessages() uint {
+	return c.receivedMessages
 }
 
 // SentMessages How many messages were we sent to the connected IoT device
-func (status *DeviceConnection) SentMessages() uint {
-	return status.sentMessages
+func (c *DeviceConnection) SentMessages() uint {
+	return c.sentMessages
 }
 
 // MessageSent A message has been sent to the connected IoT device
-func (status *DeviceConnection) MessageSent() {
-	status.sentMessages++
-	status.lastSentMessageTimeStamp = time.Now().Unix()
+func (c *DeviceConnection) MessageSent() {
+	c.sentMessages++
+	c.lastSentMessageTimeStamp = time.Now().Unix()
 }
 
 // MessageReceived A message was received from the connected IoT device
-func (status *DeviceConnection) MessageReceived() {
-	status.receivedMessages++
-	status.lastReceivedMessageTimeStamp = time.Now().Unix()
+func (c *DeviceConnection) MessageReceived() {
+	c.receivedMessages++
+	c.lastReceivedMessageTimeStamp = time.Now().Unix()
 }

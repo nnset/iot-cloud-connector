@@ -143,15 +143,16 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 
 	handler.log.Debugf("Websocket from %s accepted", r.RemoteAddr)
 
-	deviceID := r.Header.Get("device_id")
-	deviceType := r.Header.Get("device_type")
+	deviceID := r.Header.Get("Device-id")
+	deviceName := r.Header.Get("Device-Name")
+	deviceType := r.Header.Get("Device-Type")
 	userAgent := r.Header.Get("User-Agent")
 	connectionID := uuid.New().String()
 
 	handler.saveConnection(deviceID, wsConn)
 	defer handler.deleteConnection(deviceID)
 
-	handler.activeConnections.Add(connectionID, deviceID, deviceType, userAgent, r.RemoteAddr)
+	handler.activeConnections.Add(connectionID, deviceID, deviceName, deviceType, userAgent, r.RemoteAddr)
 	defer handler.activeConnections.Delete(deviceID)
 
 	handler.handleIncomingMessages(deviceID, wsConn)

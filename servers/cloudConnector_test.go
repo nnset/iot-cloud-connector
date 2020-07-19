@@ -94,8 +94,8 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 	log := createLogger()
 
 	inMemoryConnections := storage.NewInMemoryDeviceConnectionsStorage()
-	inMemoryConnections.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
-	inMemoryConnections.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
+	inMemoryConnections.Add("abc-123", "device_abc", "device_ab_name", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnections.Add("abc-456", "device_xyz", "device_xyz_name", "sensor", "userAgent", "192.168.1.101")
 	inMemoryConnections.MessageWasReceived("device_abc")
 	inMemoryConnections.MessageWasReceived("device_xyz")
 
@@ -119,8 +119,8 @@ func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
 	log := createLogger()
 
 	inMemoryConnections := storage.NewInMemoryDeviceConnectionsStorage()
-	inMemoryConnections.Add("abc-123", "device_abc", "sensor", "userAgent", "192.168.1.100")
-	inMemoryConnections.Add("abc-456", "device_xyz", "sensor", "userAgent", "192.168.1.101")
+	inMemoryConnections.Add("abc-123", "device_abc", "device_abc_name", "sensor", "userAgent", "192.168.1.100")
+	inMemoryConnections.Add("abc-456", "device_xyz", "device_xyz_name", "sensor", "userAgent", "192.168.1.101")
 
 	connectionsHandler := dummyConnectionsHandler{}
 
