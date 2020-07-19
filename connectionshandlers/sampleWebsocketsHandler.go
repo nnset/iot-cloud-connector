@@ -28,7 +28,7 @@ type SampleWebSocketsHandler struct {
 	log                        *logrus.Logger
 	startTime                  int64
 	shutdownInProgress         bool
-	connectionsStats           storage.DeviceConnectionsStatsStorageInterface
+	activeConnections          storage.DeviceConnectionsStorageInterface
 	connections                map[string]*websocket.Conn
 	queriesToDevicesWaiting    map[string]chan deviceMessage
 	commandsToDevicesWaiting   map[string]chan deviceMessage
@@ -66,9 +66,9 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 /*
 Listen TODO
 */
-func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error {
+func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, activeConnections storage.DeviceConnectionsStorageInterface, log *logrus.Logger) error {
 	handler.log = log
-	handler.connectionsStats = connectionsStats
+	handler.activeConnections = activeConnections
 
 	go handler.gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel)
 
@@ -151,8 +151,8 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 	handler.saveConnection(deviceID, wsConn)
 	defer handler.deleteConnection(deviceID)
 
-	handler.connectionsStats.Add(connectionID, deviceID, deviceType, userAgent, r.RemoteAddr)
-	defer handler.connectionsStats.Delete(deviceID)
+	handler.activeConnections.Add(connectionID, deviceID, deviceType, userAgent, r.RemoteAddr)
+	defer handler.activeConnections.Delete(deviceID)
 
 	handler.handleIncomingMessages(deviceID, wsConn)
 }
@@ -206,7 +206,7 @@ func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, 
 			return
 		}
 
-		handler.connectionsStats.MessageWasReceived(deviceID)
+		handler.activeConnections.MessageWasReceived(deviceID)
 
 		var m deviceMessage
 		err = json.Unmarshal([]byte(message), &m)
@@ -312,7 +312,7 @@ func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID s
 
 		deviceQueryResponse := <-asyncResponseWaitChannel
 
-		handler.connectionsStats.MessageWasSent(deviceID)
+		handler.activeConnections.MessageWasSent(deviceID)
 
 		r <- deviceQueryResponse.Payload
 	}()

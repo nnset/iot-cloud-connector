@@ -8,26 +8,26 @@ import (
 	"github.com/nnset/iot-cloud-connector/connections"
 )
 
-// InMemoryDeviceConnectionsStatsStorage Thread safe in memory implementation, of DeviceConnectionsStorageInterface
-type InMemoryDeviceConnectionsStatsStorage struct {
+// InMemoryDeviceConnectionsStorage Thread safe in memory implementation, of DeviceConnectionsStorageInterface
+type InMemoryDeviceConnectionsStorage struct {
 	id                    string
-	activeConnections     map[string]*connections.DeviceConnectionStats
+	activeConnections     map[string]*connections.DeviceConnection
 	dataMutex             sync.Mutex
 	totalSentMessages     uint
 	totalReceivedMessages uint
 }
 
-// NewInMemoryDeviceConnectionsStatsStorage Returns a new instance
-func NewInMemoryDeviceConnectionsStatsStorage() *InMemoryDeviceConnectionsStatsStorage {
-	return &InMemoryDeviceConnectionsStatsStorage{
+// NewInMemoryDeviceConnectionsStorage Returns a new instance
+func NewInMemoryDeviceConnectionsStorage() *InMemoryDeviceConnectionsStorage {
+	return &InMemoryDeviceConnectionsStorage{
 		id:                uuid.New().String(),
-		activeConnections: make(map[string]*connections.DeviceConnectionStats),
+		activeConnections: make(map[string]*connections.DeviceConnection),
 		dataMutex:         sync.Mutex{},
 	}
 }
 
 // Add Adds a new connection
-func (storage *InMemoryDeviceConnectionsStatsStorage) Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error {
+func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -38,13 +38,13 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) Add(connectionID, deviceID
 	}
 
 	storage.activeConnections[deviceID] =
-		connections.NewDeviceConnectionStats(connectionID, deviceID, deviceType, userAgent, remoteAddress)
+		connections.NewDeviceConnection(connectionID, deviceID, deviceType, userAgent, remoteAddress)
 
 	return nil
 }
 
 // Delete Deletes a connection
-func (storage *InMemoryDeviceConnectionsStatsStorage) Delete(deviceID string) error {
+func (storage *InMemoryDeviceConnectionsStorage) Delete(deviceID string) error {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -60,11 +60,11 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) Delete(deviceID string) er
 }
 
 // Get Gets a copy of an existing connection
-func (storage *InMemoryDeviceConnectionsStatsStorage) Get(deviceID string) (connections.DeviceConnectionStats, error) {
+func (storage *InMemoryDeviceConnectionsStorage) Get(deviceID string) (connections.DeviceConnection, error) {
 	connection, exists := storage.activeConnections[deviceID]
 
 	if !exists {
-		return connections.DeviceConnectionStats{}, errors.New("Connection not found")
+		return connections.DeviceConnection{}, errors.New("Connection not found")
 	}
 
 	connectionCopy := *connection
@@ -73,7 +73,7 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) Get(deviceID string) (conn
 }
 
 // MessageWasReceived Increments incoming message
-func (storage *InMemoryDeviceConnectionsStatsStorage) MessageWasReceived(deviceID string) error {
+func (storage *InMemoryDeviceConnectionsStorage) MessageWasReceived(deviceID string) error {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -90,7 +90,7 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) MessageWasReceived(deviceI
 }
 
 // MessageWasSent Updates a connection when a message is sent
-func (storage *InMemoryDeviceConnectionsStatsStorage) MessageWasSent(deviceID string) error {
+func (storage *InMemoryDeviceConnectionsStorage) MessageWasSent(deviceID string) error {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -107,19 +107,19 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) MessageWasSent(deviceID st
 }
 
 // IsDeviceConnected Is there a connection with the given Device?
-func (storage *InMemoryDeviceConnectionsStatsStorage) IsDeviceConnected(deviceID string) bool {
+func (storage *InMemoryDeviceConnectionsStorage) IsDeviceConnected(deviceID string) bool {
 	_, exists := storage.activeConnections[deviceID]
 
 	return exists
 }
 
 // OpenConnections How many connections are established
-func (storage *InMemoryDeviceConnectionsStatsStorage) OpenConnections() uint {
+func (storage *InMemoryDeviceConnectionsStorage) OpenConnections() uint {
 	return uint(len(storage.activeConnections))
 }
 
 // ConnectedDevices A list of connected Devices IDs
-func (storage *InMemoryDeviceConnectionsStatsStorage) ConnectedDevices() []string {
+func (storage *InMemoryDeviceConnectionsStorage) ConnectedDevices() []string {
 	storage.dataMutex.Lock()
 	defer storage.dataMutex.Unlock()
 
@@ -136,7 +136,7 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) ConnectedDevices() []strin
 
 // ReceivedMessages How many messages current server received from a given connection.
 // If connection does not exists 0 is returned.
-func (storage *InMemoryDeviceConnectionsStatsStorage) ReceivedMessages(deviceID string) uint {
+func (storage *InMemoryDeviceConnectionsStorage) ReceivedMessages(deviceID string) uint {
 	_, exists := storage.activeConnections[deviceID]
 
 	if !exists {
@@ -148,7 +148,7 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) ReceivedMessages(deviceID 
 
 // SentMessages How many messages current server sent to a given connection.
 // If connection does not exists 0 is returned.
-func (storage *InMemoryDeviceConnectionsStatsStorage) SentMessages(deviceID string) uint {
+func (storage *InMemoryDeviceConnectionsStorage) SentMessages(deviceID string) uint {
 	_, exists := storage.activeConnections[deviceID]
 
 	if !exists {
@@ -159,11 +159,11 @@ func (storage *InMemoryDeviceConnectionsStatsStorage) SentMessages(deviceID stri
 }
 
 // TotalReceivedMessages How many messages were received from all IoT devices
-func (storage *InMemoryDeviceConnectionsStatsStorage) TotalReceivedMessages() uint {
+func (storage *InMemoryDeviceConnectionsStorage) TotalReceivedMessages() uint {
 	return storage.totalReceivedMessages
 }
 
 // TotalSentMessages How many messages were sent to all IoT devices
-func (storage *InMemoryDeviceConnectionsStatsStorage) TotalSentMessages() uint {
+func (storage *InMemoryDeviceConnectionsStorage) TotalSentMessages() uint {
 	return storage.totalSentMessages
 }

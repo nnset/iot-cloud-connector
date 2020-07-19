@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// DeviceConnectionStats Device's connections information used to keep track on how
+// DeviceConnection Device's connections information used to keep track on how
 // connections are behaving
-type DeviceConnectionStats struct {
+type DeviceConnection struct {
 	connectionID                 string
 	deviceID                     string
 	deviceType                   string
@@ -20,9 +20,9 @@ type DeviceConnectionStats struct {
 	sentMessages                 uint
 }
 
-// NewDeviceConnectionStats Creates a new instance of DeviceConnectionStats
-func NewDeviceConnectionStats(connectionID, deviceID, deviceType, userAgent, remoteAddress string) *DeviceConnectionStats {
-	return &DeviceConnectionStats{
+// NewDeviceConnection Creates a new instance of DeviceConnection
+func NewDeviceConnection(connectionID, deviceID, deviceType, userAgent, remoteAddress string) *DeviceConnection {
+	return &DeviceConnection{
 		connectionID:  connectionID,
 		deviceID:      deviceID,
 		deviceType:    deviceType,
@@ -33,32 +33,32 @@ func NewDeviceConnectionStats(connectionID, deviceID, deviceType, userAgent, rem
 }
 
 // ConnectionID Connection's UUID
-func (status *DeviceConnectionStats) ConnectionID() string {
+func (status *DeviceConnection) ConnectionID() string {
 	return status.connectionID
 }
 
 // DeviceID Connection's Device UUID
-func (status *DeviceConnectionStats) DeviceID() string {
+func (status *DeviceConnection) DeviceID() string {
 	return status.deviceID
 }
 
 // DeviceType Connection's Device type
-func (status *DeviceConnectionStats) DeviceType() string {
+func (status *DeviceConnection) DeviceType() string {
 	return status.deviceType
 }
 
 // UserAgent Connection's user agent
-func (status *DeviceConnectionStats) UserAgent() string {
+func (status *DeviceConnection) UserAgent() string {
 	return status.userAgent
 }
 
 // RemoteAddress Connection's remote address
-func (status *DeviceConnectionStats) RemoteAddress() string {
+func (status *DeviceConnection) RemoteAddress() string {
 	return status.remoteAddress
 }
 
 // Uptime how many seconds the connection has been active
-func (status *DeviceConnectionStats) Uptime() (int64, error) {
+func (status *DeviceConnection) Uptime() (int64, error) {
 	if status.createdAt == 0 {
 		return -1, errors.New("Connection has not been established")
 	}
@@ -67,33 +67,33 @@ func (status *DeviceConnectionStats) Uptime() (int64, error) {
 }
 
 // LastReceivedMessageTimeStamp When was the last time when a message was received from the connected IoT device (unix time)
-func (status *DeviceConnectionStats) LastReceivedMessageTimeStamp() int64 {
+func (status *DeviceConnection) LastReceivedMessageTimeStamp() int64 {
 	return status.lastReceivedMessageTimeStamp
 }
 
 // LastSentMessageTimeStamp When was the last time when a message was sent to the connected IoT device (unix time)
-func (status *DeviceConnectionStats) LastSentMessageTimeStamp() int64 {
+func (status *DeviceConnection) LastSentMessageTimeStamp() int64 {
 	return status.lastSentMessageTimeStamp
 }
 
 // ReceivedMessages How many messages have were received from the connected IoT device
-func (status *DeviceConnectionStats) ReceivedMessages() uint {
+func (status *DeviceConnection) ReceivedMessages() uint {
 	return status.receivedMessages
 }
 
 // SentMessages How many messages were we sent to the connected IoT device
-func (status *DeviceConnectionStats) SentMessages() uint {
+func (status *DeviceConnection) SentMessages() uint {
 	return status.sentMessages
 }
 
 // MessageSent A message has been sent to the connected IoT device
-func (status *DeviceConnectionStats) MessageSent() {
+func (status *DeviceConnection) MessageSent() {
 	status.sentMessages++
 	status.lastSentMessageTimeStamp = time.Now().Unix()
 }
 
 // MessageReceived A message was received from the connected IoT device
-func (status *DeviceConnectionStats) MessageReceived() {
+func (status *DeviceConnection) MessageReceived() {
 	status.receivedMessages++
 	status.lastReceivedMessageTimeStamp = time.Now().Unix()
 }

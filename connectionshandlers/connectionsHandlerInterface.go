@@ -9,7 +9,7 @@ import (
 // Just implement this interface so CloudConnector will be able to support your domain logic and your
 // IoT devices connections.
 type ConnectionsHandlerInterface interface {
-	Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
+	Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connections storage.DeviceConnectionsStorageInterface, log *logrus.Logger) error
 	SendCommand(payload, deviceID string) (string, int, error)
 	SendQuery(payload, deviceID string) (string, int, error)
 	QueriesWaiting() uint

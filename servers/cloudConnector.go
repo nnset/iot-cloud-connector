@@ -35,7 +35,7 @@ type CloudConnector struct {
 	connectionsHandler               connectionshandlers.ConnectionsHandlerInterface
 	statusAPI                        CloudConnectorAPIInterface
 	state                            CloudConnectorState
-	connectionsStats                 storage.DeviceConnectionsStatsStorageInterface
+	activeConnections                storage.DeviceConnectionsStorageInterface
 	auth                             APIAuthMiddleWare
 	systemMetricsStreamTicker        *time.Ticker
 	systemMetricsStreamTickerDone    chan bool
@@ -65,7 +65,7 @@ const (
 func NewCloudConnector(
 	log *logrus.Logger,
 	connectionsHandler connectionshandlers.ConnectionsHandlerInterface,
-	connectionsStats storage.DeviceConnectionsStatsStorageInterface,
+	activeConnections storage.DeviceConnectionsStorageInterface,
 	statusAPI CloudConnectorAPIInterface) *CloudConnector {
 	return &CloudConnector{
 		id:                               uuid.New().String(),
@@ -75,7 +75,7 @@ func NewCloudConnector(
 		statusAPI:                        statusAPI,
 		startTime:                        time.Now().Unix(),
 		state:                            CloudConnectorCreated,
-		connectionsStats:                 connectionsStats,
+		activeConnections:                activeConnections,
 		systemMetricsStreamSubscriptions: make(map[chan SystemMetricChangedMessage]bool),
 		systemMetricsStreamTickerDone:    make(chan bool),
 	}
@@ -92,7 +92,7 @@ func (cc *CloudConnector) Start() {
 	cc.serverShutdownWaitGroup.Add(1)
 	go cc.waitForShutdownSignal()
 
-	go cc.connectionsHandler.Start(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.connectionsStats, cc.log)
+	go cc.connectionsHandler.Start(&shutdownConnectionsHandler, &connectionsHandlerShutdownIsComplete, cc.activeConnections, cc.log)
 
 	if cc.statusAPI != nil {
 		go cc.statusAPI.Start(cc)
@@ -145,8 +145,8 @@ func (cc *CloudConnector) shutdown(shutdownConnectionsHandler, connectionsHandle
 	cc.state = CloudConnectorStopped
 
 	cc.log.Info("CloudConnector stopped.")
-	cc.log.Info("  Total received messages processed: ", cc.connectionsStats.TotalReceivedMessages())
-	cc.log.Info("  Total sent messages processed: ", cc.connectionsStats.TotalSentMessages())
+	cc.log.Info("  Total received messages processed: ", cc.activeConnections.TotalReceivedMessages())
+	cc.log.Info("  Total sent messages processed: ", cc.activeConnections.TotalSentMessages())
 	cc.log.Infof("  Uptime: %d seconds", cc.Uptime(""))
 }
 
@@ -278,7 +278,7 @@ func (cc *CloudConnector) Uptime(deviceID string) int64 {
 		return time.Now().Unix() - cc.startTime
 	}
 
-	connection, err := cc.connectionsStats.Get(deviceID)
+	connection, err := cc.activeConnections.Get(deviceID)
 
 	if err != nil {
 		// TODO should we return error or just 0 ?
@@ -297,32 +297,32 @@ func (cc *CloudConnector) Uptime(deviceID string) int64 {
 
 // OpenConnections How many connections are currently open
 func (cc *CloudConnector) OpenConnections() uint {
-	return cc.connectionsStats.OpenConnections()
+	return cc.activeConnections.OpenConnections()
 }
 
 // ConnectedDevices Which IoT devices (IDs are displayed) are currently connected
 func (cc *CloudConnector) ConnectedDevices() []string {
-	return cc.connectionsStats.ConnectedDevices()
+	return cc.activeConnections.ConnectedDevices()
 }
 
 // ReceivedMessages How many messages were received from a given IoT Device, or if
 // deviceID is empty, globally.
 func (cc *CloudConnector) ReceivedMessages(deviceID string) uint {
 	if deviceID == "" {
-		return cc.connectionsStats.TotalReceivedMessages()
+		return cc.activeConnections.TotalReceivedMessages()
 	}
 
-	return cc.connectionsStats.ReceivedMessages(deviceID)
+	return cc.activeConnections.ReceivedMessages(deviceID)
 }
 
 // SentMessages How many messages were sent to a given IoT Device, or if
 // deviceID is empty, globally.
 func (cc *CloudConnector) SentMessages(deviceID string) uint {
 	if deviceID == "" {
-		return cc.connectionsStats.TotalSentMessages()
+		return cc.activeConnections.TotalSentMessages()
 	}
 
-	return cc.connectionsStats.SentMessages(deviceID)
+	return cc.activeConnections.SentMessages(deviceID)
 }
 
 // SendCommand Send a command message to a given IoT Device

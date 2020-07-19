@@ -20,7 +20,7 @@ func main() {
 	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{})
 
 	s := servers.NewCloudConnector(
-		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), defaultAPI,
+		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,
 	)
 
 	s.Start()

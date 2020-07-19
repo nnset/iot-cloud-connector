@@ -58,7 +58,7 @@ func main() {
     defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{})
 
     s := servers.NewCloudConnector(
-        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), defaultAPI,
+        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,
     )
 
     s.Start()
@@ -140,18 +140,21 @@ Lets talk about the basic structs.
 
 ```go
 type CloudConnector struct {
-	id                      string
-	address                 string
-	port                    string
-	network                 string
-	startTime               int64
-	log                     *logrus.Logger
-	serverShutdownWaitGroup sync.WaitGroup
-	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
-	statusAPI               CloudConnectorAPIInterface
-	state                   CloudConnectorState
-	connectionsStats        storage.DeviceConnectionsStatsStorageInterface
-	auth                    APIAuthMiddleWare
+	id                               string
+	address                          string
+	port                             string
+	network                          string
+	startTime                        int64
+	log                              *logrus.Logger
+	serverShutdownWaitGroup          sync.WaitGroup
+	connectionsHandler               connectionshandlers.ConnectionsHandlerInterface
+	statusAPI                        CloudConnectorAPIInterface
+	state                            CloudConnectorState
+	activeConnections                storage.DeviceConnectionsStorageInterface
+	auth                             APIAuthMiddleWare
+	systemMetricsStreamTicker        *time.Ticker
+	systemMetricsStreamTickerDone    chan bool
+	systemMetricsStreamSubscriptions map[chan SystemMetricChangedMessage]bool
 }
 ```
 
@@ -165,7 +168,7 @@ Starts all functional layers:
 Handles:
 
 * Server shutdown when a os.signal is sent to stop the process. CloudConnector performs a graceful shutdown for all layers but, if this timeouts, shutdown is enforced.
-* Holds Connections stats (via an instance of storage.DeviceConnectionsStatsStorageInterface)
+* Holds Connections stats (via an instance of storage.DeviceConnectionsStorageInterface)
 * Start REST API server and supports it making connection stats data available to it.
 
 **How to instantiate it**
@@ -177,7 +180,7 @@ In order to instantiate it, you can use its named constructor and call *Start()*
     // Init log, connectionsHandler and defaultAPI before.
 
     connector := servers.NewCloudConnector(
-        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStatsStorage(), defaultAPI,
+        log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,
     )
 
     connector.Start()  // Blocks flow until a kill signal is sent to the process
@@ -186,13 +189,13 @@ In order to instantiate it, you can use its named constructor and call *Start()*
 Once started your IoT devices may connect using localhost port 9090 and using any protocol you defined 
 in your own connectionsHandlerInterface implementation, for example websockets.
 
-#### connections.DeviceConnectionStats
+#### connections.DeviceConnection
 
 > Information regarding each IoT device connection. All these fields are then used to report
 how a connection is behaving.
 
 ```go
-type DeviceConnectionStats struct {
+type DeviceConnection struct {
     connectionID                 string
     deviceID                     string
     deviceType                   string
@@ -219,7 +222,7 @@ kind of business rules you need to manage your IoT devices.
 
 ```go
 type ConnectionsHandlerInterface interface {
-    Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connectionsStats storage.DeviceConnectionsStatsStorageInterface, log *logrus.Logger) error
+    Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connections storage.DeviceConnectionsStorageInterface, log *logrus.Logger) error
     SendCommand(payload, deviceID string) (string, int, error)
     SendQuery(payload, deviceID string) (string, int, error)
     QueriesWaiting() uint
@@ -235,11 +238,11 @@ On Start method these two channels are important:
 | shutdownIsCompleteChannel  | ConnectionsHandler on writes on it. A message must be added only when ConnectionsHandler has completed its shutdown procedure. |
 
 
-#### storage.DeviceConnectionsStatsStorageInterface
+#### storage.DeviceConnectionsStorageInterface
 
 > How individual IoT devices connections stats are stored offering some global stats as well.
 
-Check a ready to use thread safe in memory implementation at [storage.InMemoryDeviceConnectionsStatsStorage](storage/inMemoryDeviceConnectionsStatsStorage.go)
+Check a ready to use thread safe in memory implementation at [storage.InMemoryDeviceConnectionsStorage](storage/inMemoryDeviceConnectionsStorage.go)
 
 
 #### servers.CloudConnectorAPIInterface
@@ -302,11 +305,21 @@ And then you must code :
 
 **Optional steps**
 
-- An implementation of [storage.DeviceConnectionsStatsStorageInterface](storage/deviceConnectionsStatsStorageInterface.go)
-    - Check [in memory implementation](storage/inMemoryDeviceConnectionsStatsStorage.go) for an example.
+- An implementation of [storage.DeviceConnectionsStorageInterface](storage/deviceConnectionsStorageInterface.go)
+    - Check [in memory implementation](storage/inMemoryDeviceConnectionsStorage.go) for an example.
 - An implementation of servers.CloudConnectorAPIInterface
     - Check [default REST API](servers/defaultCloudConnectorAPI.go) for an example.
 
+
+Finally type 
+
+```
+    $ go get
+
+    $ go build
+
+    $ ./your_app
+```
 
 # Links
 

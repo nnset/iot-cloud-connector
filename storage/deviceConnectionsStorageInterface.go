@@ -4,14 +4,14 @@ import (
 	"github.com/nnset/iot-cloud-connector/connections"
 )
 
-// DeviceConnectionsStatsStorageInterface Defines how DeviceConnectionStats should be stored.
+// DeviceConnectionsStorageInterface Defines how DeviceConnection should be stored.
 // We provide a thread safe in memory implementation.
-type DeviceConnectionsStatsStorageInterface interface {
+type DeviceConnectionsStorageInterface interface {
 	Add(connectionID, deviceID, deviceType, userAgent, remoteAddress string) error
 
 	Delete(deviceID string) error
 
-	Get(deviceID string) (connections.DeviceConnectionStats, error)
+	Get(deviceID string) (connections.DeviceConnection, error)
 
 	MessageWasReceived(deviceID string) error
 	MessageWasSent(deviceID string) error
