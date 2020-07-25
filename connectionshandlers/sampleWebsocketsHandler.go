@@ -132,6 +132,15 @@ func (handler *SampleWebSocketsHandler) closeAllConnections() error {
 }
 
 func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, r *http.Request) {
+
+	authError := handler.AuthenticateNewConnection(r.Header.Get("Authentication"))
+
+	if authError != nil {
+		handler.log.Debugf("Unauthorized connection from %s", r.RemoteAddr)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	wsConn, err := handler.upgradeConnectionToWebSocket(w, r)
 
 	if err != nil {
@@ -156,6 +165,11 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 	defer handler.activeConnections.Delete(deviceID)
 
 	handler.handleIncomingMessages(deviceID, wsConn)
+}
+
+// AuthenticateNewConnection TODO
+func (handler *SampleWebSocketsHandler) AuthenticateNewConnection(authData string) error {
+	return nil
 }
 
 func (handler *SampleWebSocketsHandler) upgradeConnectionToWebSocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {

@@ -68,6 +68,10 @@ func (d *dummyConnectionsHandler) CommandsWaiting() uint {
 	return 2
 }
 
+func (d *dummyConnectionsHandler) AuthenticateNewConnection(authData string) error {
+	return nil
+}
+
 func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testing.T) {
 	log := createLogger()
 

@@ -14,4 +14,5 @@ type ConnectionsHandlerInterface interface {
 	SendQuery(payload, deviceID string) (string, int, error)
 	QueriesWaiting() uint
 	CommandsWaiting() uint
+	AuthenticateNewConnection(authData string) error
 }
