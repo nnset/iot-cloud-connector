@@ -4,6 +4,12 @@ import (
 	"net/http"
 )
 
+// CrossOriginResourceSharing CORS settings for API server
+type CrossOriginResourceSharing struct {
+	Origin  string
+	Headers string
+}
+
 // APIAuthMiddleWare Use this interface to code how REST API requests
 // should be authenticated.
 // This interface is compatible with Gorilla Mux Router (http://www.gorillatoolkit.org/pkg/mux).

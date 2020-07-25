@@ -15,7 +15,7 @@ class ConnectedDevices extends ComponentWithPreloader {
     if (!container) {
       return '';
     }
-    
+
     this.__render_preloader(container);
 
     this.cloud_connector.get_data(this.fetch_data_path)

@@ -223,7 +223,7 @@ TODO
 
 #### Devices list
 
-> **GET** `/status`
+> **GET** `/devices`
 
 Which devices are currently connected.
 

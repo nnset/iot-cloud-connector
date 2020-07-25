@@ -52,10 +52,15 @@ func main() {
         "localhost", "8080", "tcp", "", "",
     )
 
+    cors := servers.CrossOriginResourceSharing{
+        Headers: "Content-Type, Access-Control-Request-Method, Authorization",
+        Origin:  "mysite.com",
+    }
+
     // A default REST API will be available at localhost:9090
     // with no authorization required.
     // Check servers.authentication.go for more build in authentication methods
-    defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{})
+    defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{}, &cors)
 
     s := servers.NewCloudConnector(
         log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,
@@ -140,21 +145,21 @@ Lets talk about the basic structs.
 
 ```go
 type CloudConnector struct {
-	id                               string
-	address                          string
-	port                             string
-	network                          string
-	startTime                        int64
-	log                              *logrus.Logger
-	serverShutdownWaitGroup          sync.WaitGroup
-	connectionsHandler               connectionshandlers.ConnectionsHandlerInterface
-	statusAPI                        CloudConnectorAPIInterface
-	state                            CloudConnectorState
-	activeConnections                storage.DeviceConnectionsStorageInterface
-	auth                             APIAuthMiddleWare
-	systemMetricsStreamTicker        *time.Ticker
-	systemMetricsStreamTickerDone    chan bool
-	systemMetricsStreamSubscriptions map[chan SystemMetricChangedMessage]bool
+    id                               string
+    address                          string
+    port                             string
+    network                          string
+    startTime                        int64
+    log                              *logrus.Logger
+    serverShutdownWaitGroup          sync.WaitGroup
+    connectionsHandler               connectionshandlers.ConnectionsHandlerInterface
+    statusAPI                        CloudConnectorAPIInterface
+    state                            CloudConnectorState
+    activeConnections                storage.DeviceConnectionsStorageInterface
+    auth                             APIAuthMiddleWare
+    systemMetricsStreamTicker        *time.Ticker
+    systemMetricsStreamTickerDone    chan bool
+    systemMetricsStreamSubscriptions map[chan SystemMetricChangedMessage]bool
 }
 ```
 
@@ -255,6 +260,9 @@ to Cloud Connector.
 
 For authentication methods, we provide some options compatible with 
 the Default API. Check [authentication.go](servers/authentication.go).
+
+For [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) settings use
+[CrossOriginResourceSharing](servers/authentication.go) struct
 
 We provide a default REST API for Cloud Connector check the [documentation here](/docs/default-cloud-connector-api.md).
 

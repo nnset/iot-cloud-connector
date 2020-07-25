@@ -17,7 +17,12 @@ func main() {
 		"localhost", "8080", "tcp", "", "",
 	)
 
-	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{})
+	cors := servers.CrossOriginResourceSharing{
+		Headers: "Content-Type, Access-Control-Request-Method, Authorization",
+		Origin:  "*",
+	}
+
+	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{}, &cors)
 
 	s := servers.NewCloudConnector(
 		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,

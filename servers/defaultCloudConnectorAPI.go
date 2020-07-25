@@ -30,14 +30,20 @@ type DefaultCloudConnectorAPI struct {
 	cloudConnector *CloudConnector
 	httpServer     *http.Server
 	auth           APIAuthMiddleWare
+	cors           *CrossOriginResourceSharing
 }
 
 // NewDefaultCloudConnectorAPI Creates a new DefaultCloudConnectorAPI
-func NewDefaultCloudConnectorAPI(address, port string, auth APIAuthMiddleWare) *DefaultCloudConnectorAPI {
+func NewDefaultCloudConnectorAPI(
+	address, port string,
+	auth APIAuthMiddleWare,
+	cors *CrossOriginResourceSharing,
+) *DefaultCloudConnectorAPI {
 	return &DefaultCloudConnectorAPI{
 		address: address,
 		port:    port,
 		auth:    auth,
+		cors:    cors,
 	}
 }
 
@@ -79,18 +85,20 @@ func (api *DefaultCloudConnectorAPI) router() *mux.Router {
 	router.HandleFunc("/devices/command/{deviceID}", api.sendCommand).Methods(http.MethodPost, http.MethodOptions)
 	router.HandleFunc("/devices/query/{deviceID}", api.sendQuery).Methods(http.MethodPost, http.MethodOptions)
 
-	router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Method, Authorization")
+	if api.cors != nil {
+		router.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Access-Control-Allow-Origin", api.cors.Origin)
+				w.Header().Set("Access-Control-Allow-Headers", api.cors.Headers)
 
-			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				next.ServeHTTP(w, r)
-			}
+				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+					w.WriteHeader(http.StatusOK)
+				} else {
+					next.ServeHTTP(w, r)
+				}
+			})
 		})
-	})
+	}
 
 	router.Use(api.auth.Middleware)
 
