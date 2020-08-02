@@ -30,11 +30,17 @@
     color: var(--white-color);
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     overflow: auto;
+    min-height: 48px;
 }
 
 .system-metric .content .unit {
     font-size: 12px;
     min-height: 24px;
+}
+
+.system-metric[data-metric="start_time"] .content .value {
+    font-size: calc(var(--base-text-size) * 0.90);
+    padding-top: 24px;
 }
 
 .connected-devices .content table .list-action {

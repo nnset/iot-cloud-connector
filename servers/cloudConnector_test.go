@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 
 	"github.com/google/uuid"
 )
@@ -77,7 +78,7 @@ func TestCloudServerNamedConstructorShouldReturnAPointerToANewInstance(t *testin
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	assert.Assert(t, s != nil)
 
@@ -89,7 +90,7 @@ func TestCreatingACloudServerShouldSetItsStateToCreated(t *testing.T) {
 	log := createLogger()
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	assert.Assert(t, s.State() == CloudConnectorCreated)
 }
@@ -105,13 +106,13 @@ func TestIncomingMessagesCanBeFilteredByConnectedDeviceID(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, inMemoryConnections, nil)
+	s := NewCloudConnector(log, &connectionsHandler, inMemoryConnections, nil, nil)
 
 	defer func() {
 		s.Kill()
 		time.Sleep(20 * time.Millisecond)
 	}()
-	go s.Start()
+	go s.Start(5)
 	time.Sleep(20 * time.Millisecond)
 
 	assert.Assert(t, s.ReceivedMessages("device_abc") == 1)
@@ -128,7 +129,7 @@ func TestConnectedDevicesIDsShouldBeListable(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, inMemoryConnections, nil)
+	s := NewCloudConnector(log, &connectionsHandler, inMemoryConnections, nil, nil)
 
 	assert.Equal(t, 2, len(s.ConnectedDevices()))
 }
@@ -138,7 +139,7 @@ func TestQueriesWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	assert.Equal(t, uint(1), s.QueriesWaiting())
 }
@@ -148,7 +149,7 @@ func TestCommandsWaitingShouldReturnWhatConnectionsHandlerReturns(t *testing.T) 
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	assert.Equal(t, uint(2), s.CommandsWaiting())
 }
@@ -158,7 +159,7 @@ func TestSendingACommandShouldReturnWhatConnectionsHandlerReturns(t *testing.T) 
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	response, responseCode, err := s.SendCommand("payload", "dummy_id")
 
@@ -172,7 +173,7 @@ func TestSendingAQueryShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	response, responseCode, err := s.SendQuery("payload", "dummy_id")
 
@@ -186,7 +187,7 @@ func TestSendingAQueryToADeviceThatIsNotConnectedShouldReturnAnError(t *testing.
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	response, responseCode, err := s.SendQuery("payload", "abc-123")
 
@@ -200,7 +201,15 @@ func TestSubscribingToSystemMetricsStreamShouldIncreaseTheCountOfSubscribers(t *
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
+
+	defer func() {
+		s.Kill()
+		time.Sleep(20 * time.Millisecond)
+	}()
+
+	go s.Start(5)
+	time.Sleep(20 * time.Millisecond)
 
 	messageChannel := make(chan SystemMetricChangedMessage)
 
@@ -214,7 +223,15 @@ func TestUnSubscribingToSystemMetricsStreamShouldDecreaseTheCountOfSubscribers(t
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
+
+	defer func() {
+		s.Kill()
+		time.Sleep(20 * time.Millisecond)
+	}()
+
+	go s.Start(5)
+	time.Sleep(20 * time.Millisecond)
 
 	messageChannel := make(chan SystemMetricChangedMessage)
 
@@ -225,34 +242,41 @@ func TestUnSubscribingToSystemMetricsStreamShouldDecreaseTheCountOfSubscribers(t
 	assert.Equal(t, uint(0), s.SystemMetricsStreamSubscriptions())
 }
 
-func TestSubscriptionsToSystemMetricStreamShoudReceiveMessages(t *testing.T) {
+func TestSubscriptionsToSystemMetricStreamShouldReceiveMessages(t *testing.T) {
 	log := createLogger()
 
 	connectionsHandler := dummyConnectionsHandler{}
 
-	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil)
+	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
 	defer func() {
 		s.Kill()
 		time.Sleep(20 * time.Millisecond)
 	}()
 
-	go s.Start()
+	go s.Start(1)
 	time.Sleep(20 * time.Millisecond)
 
 	messageChannel := make(chan SystemMetricChangedMessage)
 
 	s.SubscribeToSystemMetricsStream(messageChannel)
 
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		messageChannel2 := make(chan SystemMetricChangedMessage)
-		s.SubscribeToSystemMetricsStream(messageChannel2)
-	}()
+	availableMetrics := make([]string, 10)
+
+	availableMetrics[0] = string(OpenConnections)
+	availableMetrics[1] = string(ReceivedMessages)
+	availableMetrics[2] = string(SentMessages)
+	availableMetrics[3] = string(SystemMemory)
+	availableMetrics[4] = string(AllocatedMemory)
+	availableMetrics[5] = string(HeapAllocatedMemory)
+	availableMetrics[6] = string(GoRoutines)
+	availableMetrics[7] = string(CommandsWaiting)
+	availableMetrics[8] = string(QueriesWaiting)
+	availableMetrics[9] = string(StartTime)
 
 	select {
 	case m := <-messageChannel:
-		assert.Equal(t, "sse_subscribers", m.Metric)
+		assert.Assert(t, is.Contains(availableMetrics, m.Metric))
 	case <-time.After(3 * time.Second):
 		// Timeout, no message received
 		assert.Equal(t, 0, 1)

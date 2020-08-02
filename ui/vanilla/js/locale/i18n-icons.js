@@ -3,6 +3,7 @@ i18n_icons = {
     "server_current_state": "storage",
     "connections": "sim_card",
     "uptime": "timer",
+    "start_time": "timer",
     "received_messages": "call_received",
     "received_messages_per_second": "call_received",
     "sent_messages": "call_made",

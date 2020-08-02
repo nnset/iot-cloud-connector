@@ -5,6 +5,12 @@ class SystemMetric {
     this.metric_human_name = metric_human_name;
     this.icon = icon;
     this.metric_unit = metric_unit || '';    
+
+    if (this.metric_key === 'start_time') {
+        const date = new Date( parseInt(metric_value) * 1000);
+
+        this.metric_value = date.toISOString();
+    }
   }
 
   render(container = null) {

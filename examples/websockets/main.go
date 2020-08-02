@@ -25,10 +25,10 @@ func main() {
 	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{}, &cors)
 
 	s := servers.NewCloudConnector(
-		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,
+		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI, nil,
 	)
 
-	s.Start()
+	s.Start(5)
 
 	log.Debug("Finished shutdown")
 

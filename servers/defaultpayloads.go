@@ -6,7 +6,7 @@ type cloudConnectorStatusPayload struct {
 	Metrics struct {
 		ServerCurrentState        CloudConnectorState `json:"server_current_state"`
 		Connections               uint                `json:"connections"`
-		Uptime                    int64               `json:"uptime"`
+		StartTime                 int64               `json:"start_time"`
 		ReceivedMessages          uint                `json:"received_messages"`
 		ReceivedMessagesPerSecond float64             `json:"received_messages_per_second"`
 		SentMessages              uint                `json:"sent_messages"`

@@ -3,6 +3,7 @@ i18n_en_texts = {
     "server_current_state": "State",
     "connections": "Connections",
     "uptime": "uptime",
+    "start_time": "Up since",
     "received_messages": "Received messages",
     "received_messages_per_second": "Received messages (m/s)",
     "sent_messages": "Sent messages",

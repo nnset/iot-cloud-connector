@@ -62,7 +62,14 @@ class SystemStatus extends ComponentWithPreloader {
         const data = JSON.parse(e.data);
         
         if (data.metric) {
+          // TODO : this logic is duplicated at system-metric.js
           var metric_dom = document.body.querySelector(`${container_selector} [data-metric="${data.metric}"] .value`);
+          
+          if (data.metric === 'start_time') {
+            const date = new Date(parseInt(data.value) * 1000);
+            data.value = date.toISOString();
+          }
+
           metric_dom.innerHTML = data.value;
         }
       });
