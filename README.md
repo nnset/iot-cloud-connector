@@ -60,7 +60,7 @@ func main() {
     // A default REST API will be available at localhost:9090
     // with no authorization required.
     // Check servers.authentication.go for more build in authentication methods
-    defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{}, &cors)
+    defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", "", "", &servers.APINoAuthenticationMiddleware{}, &cors)
 
     s := servers.NewCloudConnector(
         log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI,

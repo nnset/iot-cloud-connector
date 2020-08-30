@@ -25,29 +25,33 @@ import (
 // Read API docs at /docs/default-cloud-connector-api.md
 //
 type DefaultCloudConnectorAPI struct {
-	address        string
-	port           string
-	cloudConnector *CloudConnector
-	httpServer     *http.Server
-	auth           APIAuthMiddleWare
-	cors           *CrossOriginResourceSharing
+	address         string
+	port            string
+	certificatePath string
+	keyPath         string
+	cloudConnector  *CloudConnector
+	httpServer      *http.Server
+	auth            APIAuthMiddleWare
+	cors            *CrossOriginResourceSharing
 }
 
 // NewDefaultCloudConnectorAPI Creates a new DefaultCloudConnectorAPI
 func NewDefaultCloudConnectorAPI(
-	address, port string,
+	address, port, certificatePath, keyPath string,
 	auth APIAuthMiddleWare,
 	cors *CrossOriginResourceSharing,
 ) *DefaultCloudConnectorAPI {
 	return &DefaultCloudConnectorAPI{
-		address: address,
-		port:    port,
-		auth:    auth,
-		cors:    cors,
+		address:         address,
+		port:            port,
+		certificatePath: certificatePath,
+		keyPath:         keyPath,
+		auth:            auth,
+		cors:            cors,
 	}
 }
 
-// Start Starts DefaultCloudConnectorAPI using the configured port.
+// Start Starts DefaultCloudConnectorAPI using the configured port and TLS certificates.
 // You don't have to invoke this method, CloudConnector will.
 func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error {
 	if cloudConnector == nil {
@@ -57,19 +61,37 @@ func (api *DefaultCloudConnectorAPI) Start(cloudConnector *CloudConnector) error
 	api.cloudConnector = cloudConnector
 	api.cloudConnector.log.Debugf("Starting Default REST API")
 
-	listenAddr := fmt.Sprintf("%s:%s", api.address, api.port)
-
 	api.httpServer = &http.Server{
-		Addr:    listenAddr,
+		Addr:    fmt.Sprintf("%s:%s", api.address, api.port),
 		Handler: api.router(),
 	}
 
-	api.cloudConnector.log.Debugf("Default REST API available at %s:%s", api.address, api.port)
+	api.cloudConnector.log.Infof("Default REST API available at %s:%s", api.address, api.port)
 
-	// TODO api.httpServer.ListenAndServeTLS
+	if api.certificatePath == "" {
+		return api.startServer()
+	}
 
+	return api.startTLSserver()
+}
+
+func (api *DefaultCloudConnectorAPI) startTLSserver() error {
+	api.cloudConnector.log.Info("  Default REST API will use TLS")
+
+	if err := api.httpServer.ListenAndServeTLS(api.certificatePath, api.keyPath); err != nil && err != http.ErrServerClosed {
+		api.cloudConnector.log.Fatalf("%v\n", err)
+
+		return err
+	}
+
+	return nil
+}
+
+func (api *DefaultCloudConnectorAPI) startServer() error {
 	if err := api.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		api.cloudConnector.log.Fatalf("Could not listen on %s: %v\n", listenAddr, err)
+		api.cloudConnector.log.Fatalf("%v\n", err)
+
+		return err
 	}
 
 	return nil

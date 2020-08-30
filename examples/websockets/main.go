@@ -22,7 +22,7 @@ func main() {
 		Origin:  "*",
 	}
 
-	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", &servers.APINoAuthenticationMiddleware{}, &cors)
+	defaultAPI := servers.NewDefaultCloudConnectorAPI("localhost", "9090", "", "", &servers.APINoAuthenticationMiddleware{}, &cors)
 
 	s := servers.NewCloudConnector(
 		log, connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), defaultAPI, nil,
