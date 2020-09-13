@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type DefaultSystemMetricsStream struct {
+type ServerSentEventsSystemMetricsStream struct {
 	publishInterval                  uint
 	cc                               *CloudConnector
 	systemMetricsStreamTicker        *time.Ticker
@@ -17,7 +17,7 @@ type DefaultSystemMetricsStream struct {
 	previousPublishedSSESubscribers  uint
 }
 
-func NewDefaultSystemMetricsStream(publishInterval uint, cc *CloudConnector) *DefaultSystemMetricsStream {
+func NewServerSentEventsSystemMetricsStream(publishInterval uint, cc *CloudConnector) *ServerSentEventsSystemMetricsStream {
 
 	interval := publishInterval
 
@@ -25,7 +25,7 @@ func NewDefaultSystemMetricsStream(publishInterval uint, cc *CloudConnector) *De
 		interval = 5
 	}
 
-	return &DefaultSystemMetricsStream{
+	return &ServerSentEventsSystemMetricsStream{
 		publishInterval:                  interval,
 		cc:                               cc,
 		dataMutex:                        sync.Mutex{},
@@ -35,18 +35,18 @@ func NewDefaultSystemMetricsStream(publishInterval uint, cc *CloudConnector) *De
 	}
 }
 
-func (stream *DefaultSystemMetricsStream) Start() {
+func (stream *ServerSentEventsSystemMetricsStream) Start() {
 	stream.systemMetricsStreamTicker = time.NewTicker(time.Duration(stream.publishInterval) * time.Second)
 
 	stream.run()
 }
 
-func (stream *DefaultSystemMetricsStream) Stop() {
+func (stream *ServerSentEventsSystemMetricsStream) Stop() {
 	stream.cc.log.Debug("Stoping SystemMetricsStream")
 	stream.systemMetricsStreamTicker.Stop()
 }
 
-func (stream *DefaultSystemMetricsStream) run() {
+func (stream *ServerSentEventsSystemMetricsStream) run() {
 	// This stream in order to avoid too much network traffic will perform as a
 	// updates buffer and report changes time to time and if value experienced a
 	// relevant change.
@@ -70,14 +70,14 @@ func (stream *DefaultSystemMetricsStream) run() {
 	}
 }
 
-func (stream *DefaultSystemMetricsStream) updateMetrics() {
+func (stream *ServerSentEventsSystemMetricsStream) updateMetrics() {
 	stream.dataMutex.Lock()
 	defer stream.dataMutex.Unlock()
 
 	stream.metrics = stream.cc.SystemMetrics()
 }
 
-func (stream *DefaultSystemMetricsStream) publishChangedMetrics(previousMetrics map[string]string) {
+func (stream *ServerSentEventsSystemMetricsStream) publishChangedMetrics(previousMetrics map[string]string) {
 	stream.dataMutex.Lock()
 	defer stream.dataMutex.Unlock()
 
@@ -98,12 +98,12 @@ func (stream *DefaultSystemMetricsStream) publishChangedMetrics(previousMetrics 
 	}
 }
 
-func (stream *DefaultSystemMetricsStream) sseSubscribersChanged() bool {
+func (stream *ServerSentEventsSystemMetricsStream) sseSubscribersChanged() bool {
 
 	return stream.previousPublishedSSESubscribers != uint(len(stream.systemMetricsStreamSubscriptions))
 }
 
-func (stream *DefaultSystemMetricsStream) publishMetric(metricName, previousValue, currentValue string) {
+func (stream *ServerSentEventsSystemMetricsStream) publishMetric(metricName, previousValue, currentValue string) {
 	stream.cc.log.Debugf("%s changed from %s to %s", metricName, previousValue, currentValue)
 
 	message := SystemMetricChangedMessage{metricName, currentValue}
@@ -115,7 +115,7 @@ func (stream *DefaultSystemMetricsStream) publishMetric(metricName, previousValu
 
 // SubscribeToSystemMetricsStream Subscribe a SystemMetricChangedMessage channel to receive messages
 // every time a System Metric changes.
-func (stream *DefaultSystemMetricsStream) SubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
+func (stream *ServerSentEventsSystemMetricsStream) SubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
 	stream.dataMutex.Lock()
 	defer stream.dataMutex.Unlock()
 
@@ -123,7 +123,7 @@ func (stream *DefaultSystemMetricsStream) SubscribeToSystemMetricsStream(channel
 }
 
 // UnSubscribeToSystemMetricsStream UnSubscribe a SystemMetricChangedMessage channel
-func (stream *DefaultSystemMetricsStream) UnSubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
+func (stream *ServerSentEventsSystemMetricsStream) UnSubscribeToSystemMetricsStream(channel chan SystemMetricChangedMessage) {
 	stream.dataMutex.Lock()
 	defer stream.dataMutex.Unlock()
 
@@ -131,6 +131,6 @@ func (stream *DefaultSystemMetricsStream) UnSubscribeToSystemMetricsStream(chann
 }
 
 // SystemMetricsStreamSubscriptions How many channels are subscrives to receice System Metrics updates
-func (stream *DefaultSystemMetricsStream) SystemMetricsStreamSubscriptions() uint {
+func (stream *ServerSentEventsSystemMetricsStream) SystemMetricsStreamSubscriptions() uint {
 	return uint(len(stream.systemMetricsStreamSubscriptions))
 }

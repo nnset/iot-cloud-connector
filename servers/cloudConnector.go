@@ -122,7 +122,7 @@ func (cc *CloudConnector) Start(systemMetricsStreamPublishInterval uint) {
 
 	// By default we always set a SystemMetrics stream
 	if cc.systemMetricsStream == nil {
-		cc.systemMetricsStream = NewDefaultSystemMetricsStream(systemMetricsStreamPublishInterval, cc)
+		cc.systemMetricsStream = NewServerSentEventsSystemMetricsStream(systemMetricsStreamPublishInterval, cc)
 	}
 
 	go cc.systemMetricsStream.Start()

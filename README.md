@@ -8,6 +8,7 @@ code your own business logic using [Go](https://golang.org/).
 
 ![Global diagram](docs/images/global-diagram.jpg)
 
+Current architecture is suitable for a single server instance.
 
 ## Quick start
 
