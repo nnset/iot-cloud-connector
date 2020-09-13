@@ -14,7 +14,7 @@ type DeviceConnectionDTO struct {
 	SentMessages                 uint   `json:"sent_messages"`
 }
 
-func DeviceConnectionDTOFromDeviceConnection(conn *DeviceConnection) *DeviceConnectionDTO {
+func NewDeviceConnectionDTOFromDeviceConnection(conn *DeviceConnection) *DeviceConnectionDTO {
 	return &DeviceConnectionDTO{
 		ConnectionID:                 conn.ConnectionID(),
 		DeviceID:                     conn.DeviceID(),

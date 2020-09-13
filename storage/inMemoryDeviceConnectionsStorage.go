@@ -37,10 +37,14 @@ func (storage *InMemoryDeviceConnectionsStorage) Add(connectionID, deviceID, dev
 		return errors.New("Connection already established")
 	}
 
-	storage.activeConnections[deviceID] =
+	connection, err :=
 		connections.NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress)
 
-	return nil
+	if err == nil {
+		storage.activeConnections[deviceID] = connection
+	}
+
+	return err
 }
 
 // Delete Deletes a connection
@@ -80,7 +84,7 @@ func (storage *InMemoryDeviceConnectionsStorage) MessageWasReceived(deviceID str
 	_, exists := storage.activeConnections[deviceID]
 
 	if !exists {
-		return errors.New("Connection nor found")
+		return errors.New("Connection not found")
 	}
 
 	storage.activeConnections[deviceID].MessageReceived()
@@ -127,7 +131,7 @@ func (storage *InMemoryDeviceConnectionsStorage) ConnectedDevices() []*connectio
 
 	i := 0
 	for _, connection := range storage.activeConnections {
-		devices[i] = connections.DeviceConnectionDTOFromDeviceConnection(connection)
+		devices[i] = connections.NewDeviceConnectionDTOFromDeviceConnection(connection)
 		i++
 	}
 
@@ -166,4 +170,8 @@ func (storage *InMemoryDeviceConnectionsStorage) TotalReceivedMessages() uint {
 // TotalSentMessages How many messages were sent to all IoT devices
 func (storage *InMemoryDeviceConnectionsStorage) TotalSentMessages() uint {
 	return storage.totalSentMessages
+}
+
+func (storage *InMemoryDeviceConnectionsStorage) ID() string {
+	return storage.id
 }

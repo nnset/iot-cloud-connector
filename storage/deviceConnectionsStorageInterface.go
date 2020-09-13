@@ -5,7 +5,6 @@ import (
 )
 
 // DeviceConnectionsStorageInterface Defines how DeviceConnection should be stored.
-// We provide a thread safe in memory implementation.
 type DeviceConnectionsStorageInterface interface {
 	Add(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress string) error
 

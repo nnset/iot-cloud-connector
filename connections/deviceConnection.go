@@ -5,8 +5,7 @@ import (
 	"time"
 )
 
-// DeviceConnection Device's connections information used to keep track on how
-// connections are behaving
+// DeviceConnection Device's connections information used to have stats for each connection
 type DeviceConnection struct {
 	connectionID                 string
 	deviceID                     string
@@ -22,7 +21,16 @@ type DeviceConnection struct {
 }
 
 // NewDeviceConnection Creates a new instance of DeviceConnection
-func NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress string) *DeviceConnection {
+func NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAgent, remoteAddress string) (*DeviceConnection, error) {
+
+	if deviceID == "" {
+		return nil, errors.New("Can not create a new DeviceConnection: Empty deviceID")
+	}
+
+	if remoteAddress == "" {
+		return nil, errors.New("Can not create a new DeviceConnection: Empty remoteAddress")
+	}
+
 	return &DeviceConnection{
 		connectionID:  connectionID,
 		deviceID:      deviceID,
@@ -31,7 +39,7 @@ func NewDeviceConnection(connectionID, deviceID, deviceName, deviceType, userAge
 		userAgent:     userAgent,
 		remoteAddress: remoteAddress,
 		createdAt:     time.Now().Unix(),
-	}
+	}, nil
 }
 
 // ConnectionID Connection's UUID
