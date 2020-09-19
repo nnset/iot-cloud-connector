@@ -16,9 +16,9 @@ import (
 )
 
 /*
-SampleWebSocketsHandler
+WebSocketsHandler
 */
-type SampleWebSocketsHandler struct {
+type WebSocketsHandler struct {
 	id                         string
 	address                    string
 	port                       string
@@ -29,24 +29,31 @@ type SampleWebSocketsHandler struct {
 	startTime                  int64
 	shutdownInProgress         bool
 	activeConnections          storage.DeviceConnectionsStorageInterface
-	connections                map[string]*websocket.Conn
+	openWebsockets             map[string]*websocket.Conn
 	queriesToDevicesWaiting    map[string]chan deviceMessage
 	commandsToDevicesWaiting   map[string]chan deviceMessage
 	dataMutex                  *sync.Mutex
 	shutdownOutgoingDeliveries chan bool
+	handleIncomingMessage      func(deviceID string, messageType int, p []byte) error
+	authenticateConnection     func(r *http.Request) error
 }
 
 /*
-NewSampleWebSocketsHandler TODO
+NewWebSocketsHandler TODO
 */
-func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string) *SampleWebSocketsHandler {
-	return &SampleWebSocketsHandler{
+func NewWebSocketsHandler(
+	address, port, network, keyFile, certFile string,
+	handleIncomingMessage func(deviceID string, messageType int, p []byte) error,
+	authenticateConnection func(r *http.Request) error,
+) *WebSocketsHandler {
+
+	return &WebSocketsHandler{
 		id:                         uuid.New().String(),
 		address:                    address,
 		port:                       port,
 		network:                    network,
 		startTime:                  time.Now().Unix(),
-		connections:                make(map[string]*websocket.Conn),
+		openWebsockets:             make(map[string]*websocket.Conn),
 		queriesToDevicesWaiting:    make(map[string]chan deviceMessage),
 		commandsToDevicesWaiting:   make(map[string]chan deviceMessage),
 		dataMutex:                  &sync.Mutex{},
@@ -54,13 +61,20 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 		keyFile:                    keyFile,
 		shutdownInProgress:         false,
 		shutdownOutgoingDeliveries: make(chan bool),
+		handleIncomingMessage:      handleIncomingMessage,
+		authenticateConnection:     authenticateConnection,
 	}
 }
 
 /*
 Listen TODO
 */
-func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, activeConnections storage.DeviceConnectionsStorageInterface, log *logrus.Logger) error {
+func (handler *WebSocketsHandler) Start(
+	shutdownChannel, shutdownIsCompleteChannel *chan bool,
+	activeConnections storage.DeviceConnectionsStorageInterface,
+	log *logrus.Logger,
+) error {
+
 	handler.log = log
 	handler.activeConnections = activeConnections
 
@@ -70,23 +84,25 @@ func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsComplet
 
 	// TODO Gracefully shutdown http.server
 	if handler.keyFile != "" {
-		handler.log.Debug("Serving websockets via wss (TLS ON) at " + handler.address + ":" + handler.port)
+		handler.log.Debugf("Serving websockets via wss (TLS ON) at %s:%s", handler.address, handler.port)
 		handler.log.Debugf("  Connect endpoint wss://%s:%s/connect", handler.address, handler.port)
 
 		err := http.ListenAndServeTLS(handler.address+":"+handler.port, handler.certFile, handler.keyFile, nil)
 
 		if err != nil {
 			handler.log.Fatal("ListenAndServe failed", err)
+
 			return err
 		}
 	} else {
-		handler.log.Debug("Serving websockets via ws (TLS OFF) at " + handler.address + ":" + handler.port)
+		handler.log.Debugf("Serving websockets via ws (TLS OFF) at %s:%s", handler.address, handler.port)
 		handler.log.Debugf("  Connect endpoint ws://%s:%s/connect", handler.address, handler.port)
 
 		err := http.ListenAndServe(handler.address+":"+handler.port, nil)
 
 		if err != nil {
 			handler.log.Fatal("ListenAndServe failed ", err)
+
 			return err
 		}
 	}
@@ -94,7 +110,7 @@ func (handler *SampleWebSocketsHandler) Start(shutdownChannel, shutdownIsComplet
 	return nil
 }
 
-func (handler *SampleWebSocketsHandler) gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel *chan bool) {
+func (handler *WebSocketsHandler) gracefullShutdown(shutdownChannel, shutdownIsCompleteChannel *chan bool) {
 	<-*shutdownChannel
 	handler.log.Debugf("SampleWebsocketsHandler shutdown signal received. Proceeding.")
 
@@ -107,17 +123,17 @@ func (handler *SampleWebSocketsHandler) gracefullShutdown(shutdownChannel, shutd
 	*shutdownIsCompleteChannel <- true
 }
 
-func (handler *SampleWebSocketsHandler) closeAllConnections() error {
+func (handler *WebSocketsHandler) closeAllConnections() error {
 	handler.dataMutex.Lock()
 	defer handler.dataMutex.Unlock()
 
 	handler.log.Debugf("SampleWebsocketsHandler closing open connections")
 
-	for deviceID, wsConnection := range handler.connections {
+	for deviceID, wsConnection := range handler.openWebsockets {
 		handler.log.Debugf("  Closing connection to device #%s (%s)", deviceID, wsConnection.RemoteAddr().String())
 
 		wsConnection.Close()
-		delete(handler.connections, deviceID)
+		delete(handler.openWebsockets, deviceID)
 	}
 
 	handler.log.Debugf("  All connections closed")
@@ -125,13 +141,14 @@ func (handler *SampleWebSocketsHandler) closeAllConnections() error {
 	return nil
 }
 
-func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, r *http.Request) {
+func (handler *WebSocketsHandler) handleConnection(w http.ResponseWriter, r *http.Request) {
 
-	authError := handler.AuthenticateNewConnection(r.Header.Get("Authentication"))
+	authError := handler.authenticateConnection(r)
 
 	if authError != nil {
 		handler.log.Debugf("Unauthorized connection from %s", r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
+
 		return
 	}
 
@@ -139,6 +156,7 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 
 	if err != nil {
 		handler.log.Errorf("Unable to upgrade to websocket %s", err)
+
 		return
 	}
 
@@ -161,12 +179,7 @@ func (handler *SampleWebSocketsHandler) handleConnection(w http.ResponseWriter, 
 	handler.handleIncomingMessages(deviceID, wsConn)
 }
 
-// AuthenticateNewConnection TODO
-func (handler *SampleWebSocketsHandler) AuthenticateNewConnection(authData string) error {
-	return nil
-}
-
-func (handler *SampleWebSocketsHandler) upgradeConnectionToWebSocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
+func (handler *WebSocketsHandler) upgradeConnectionToWebSocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -181,30 +194,31 @@ func (handler *SampleWebSocketsHandler) upgradeConnectionToWebSocket(w http.Resp
 	return wsConn, nil
 }
 
-func (handler *SampleWebSocketsHandler) saveConnection(deviceID string, ws *websocket.Conn) error {
+func (handler *WebSocketsHandler) saveConnection(deviceID string, ws *websocket.Conn) error {
 	handler.dataMutex.Lock()
 	defer handler.dataMutex.Unlock()
 
-	_, alreadyConnected := handler.connections[deviceID]
+	_, alreadyConnected := handler.openWebsockets[deviceID]
 
 	if alreadyConnected {
 		return errors.New("Device already connected")
 	}
 
-	handler.connections[deviceID] = ws
+	handler.openWebsockets[deviceID] = ws
 
 	return nil
 }
 
-func (handler *SampleWebSocketsHandler) deleteConnection(deviceID string) {
+func (handler *WebSocketsHandler) deleteConnection(deviceID string) {
 	handler.dataMutex.Lock()
 	defer handler.dataMutex.Unlock()
 
-	delete(handler.connections, deviceID)
+	delete(handler.openWebsockets, deviceID)
 }
 
-func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, wsConn *websocket.Conn) {
+func (handler *WebSocketsHandler) handleIncomingMessages(deviceID string, wsConn *websocket.Conn) {
 	for {
+
 		messageType, message, err := wsConn.ReadMessage()
 
 		if err != nil {
@@ -215,39 +229,70 @@ func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, 
 			return
 		}
 
-		handler.activeConnections.MessageWasReceived(deviceID)
-
-		var m deviceMessage
-		err = json.Unmarshal([]byte(message), &m)
-
-		if err == nil && m.ID != "" {
-			handler.dataMutex.Lock()
-
-			channel, exists := handler.queriesToDevicesWaiting[m.ID]
-
-			if exists {
-				channel <- m
-			} else {
-				channel, exists = handler.commandsToDevicesWaiting[m.ID]
-
-				if exists {
-					channel <- m
-				}
-			}
-
-			handler.dataMutex.Unlock()
+		if handler.messageRespondsToAQueryOrACommand(message) {
+			err = handler.handleResponseToCommandOrQuery(message)
 		} else {
-			handler.log.Debugf("recv: Type: %d, %s", messageType, message)
+			err = handler.handleIncomingMessage(deviceID, messageType, message)
+		}
+
+		handler.activeConnections.MessageWasReceived(deviceID)
+	}
+}
+
+func (handler *WebSocketsHandler) handleResponseToCommandOrQuery(message []byte) error {
+	var m deviceMessage
+	err := json.Unmarshal([]byte(message), &m)
+
+	if err != nil {
+		return err
+	}
+
+	handler.dataMutex.Lock()
+	defer handler.dataMutex.Unlock()
+
+	if handler.isAQueryWaitingForMessage(m.ID) {
+		channel, exists := handler.queriesToDevicesWaiting[m.ID]
+
+		if exists {
+			channel <- m
+		}
+	} else if handler.isACommandWaitingForMessage(m.ID) {
+		channel, exists := handler.commandsToDevicesWaiting[m.ID]
+
+		if exists {
+			channel <- m
 		}
 	}
+
+	return nil
+}
+
+func (handler *WebSocketsHandler) messageRespondsToAQueryOrACommand(message []byte) bool {
+
+	var m deviceMessage
+	err := json.Unmarshal([]byte(message), &m)
+
+	return err == nil && m.ID != ""
+}
+
+func (handler *WebSocketsHandler) isAQueryWaitingForMessage(messageID string) bool {
+	_, exists := handler.queriesToDevicesWaiting[messageID]
+
+	return exists
+}
+
+func (handler *WebSocketsHandler) isACommandWaitingForMessage(messageID string) bool {
+	_, exists := handler.commandsToDevicesWaiting[messageID]
+
+	return exists
 }
 
 /*
 SendCommand TODO
 */
-func (handler *SampleWebSocketsHandler) SendCommand(payload, deviceID string) (string, int, error) {
+func (handler *WebSocketsHandler) SendCommand(payload, deviceID string) (string, int, error) {
 	handler.dataMutex.Lock()
-	_, isConnected := handler.connections[deviceID]
+	_, isConnected := handler.openWebsockets[deviceID]
 	handler.dataMutex.Unlock()
 
 	if !isConnected {
@@ -255,7 +300,7 @@ func (handler *SampleWebSocketsHandler) SendCommand(payload, deviceID string) (s
 	}
 
 	select {
-	case r := <-handler.synchMessageToDevice(payload, deviceID, handler.commandsToDevicesWaiting):
+	case r := <-handler.sendMessageToDeviceSynchronously(payload, deviceID, handler.commandsToDevicesWaiting):
 		return fmt.Sprint(r), http.StatusOK, nil
 	case <-time.After(8 * time.Second):
 		return "", http.StatusRequestTimeout, errors.New("Device command timeout")
@@ -265,9 +310,9 @@ func (handler *SampleWebSocketsHandler) SendCommand(payload, deviceID string) (s
 /*
 SendQuery TODO
 */
-func (handler *SampleWebSocketsHandler) SendQuery(payload, deviceID string) (string, int, error) {
+func (handler *WebSocketsHandler) SendQuery(payload, deviceID string) (string, int, error) {
 	handler.dataMutex.Lock()
-	_, isConnected := handler.connections[deviceID]
+	_, isConnected := handler.openWebsockets[deviceID]
 	handler.dataMutex.Unlock()
 
 	if !isConnected {
@@ -275,14 +320,14 @@ func (handler *SampleWebSocketsHandler) SendQuery(payload, deviceID string) (str
 	}
 
 	select {
-	case r := <-handler.synchMessageToDevice(payload, deviceID, handler.queriesToDevicesWaiting):
+	case r := <-handler.sendMessageToDeviceSynchronously(payload, deviceID, handler.queriesToDevicesWaiting):
 		return fmt.Sprint(r), http.StatusOK, nil
 	case <-time.After(8 * time.Second):
 		return "", http.StatusRequestTimeout, errors.New("Device query timeout")
 	}
 }
 
-func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID string, queue map[string]chan deviceMessage) <-chan string {
+func (handler *WebSocketsHandler) sendMessageToDeviceSynchronously(payload, deviceID string, queue map[string]chan deviceMessage) <-chan string {
 	r := make(chan string)
 
 	go func() {
@@ -310,7 +355,7 @@ func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID s
 		}()
 
 		handler.dataMutex.Lock()
-		connection, _ := handler.connections[deviceID]
+		connection, _ := handler.openWebsockets[deviceID]
 		err = connection.WriteMessage(1, marshalledMessage)
 		handler.dataMutex.Unlock()
 
@@ -329,10 +374,10 @@ func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID s
 	return r
 }
 
-func (handler *SampleWebSocketsHandler) QueriesWaiting() uint {
+func (handler *WebSocketsHandler) QueriesWaiting() uint {
 	return uint(len(handler.queriesToDevicesWaiting))
 }
 
-func (handler *SampleWebSocketsHandler) CommandsWaiting() uint {
+func (handler *WebSocketsHandler) CommandsWaiting() uint {
 	return uint(len(handler.commandsToDevicesWaiting))
 }

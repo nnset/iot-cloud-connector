@@ -14,5 +14,10 @@ type ConnectionsHandlerInterface interface {
 	SendQuery(payload, deviceID string) (string, int, error)
 	QueriesWaiting() uint
 	CommandsWaiting() uint
-	AuthenticateNewConnection(authData string) error
+}
+
+type deviceMessage struct {
+	ID      string `json:"id"`
+	Payload string `json:"payload"`
+	Time    int64  `json:"timestamp"`
 }
