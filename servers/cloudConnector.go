@@ -99,6 +99,7 @@ func NewCloudConnector(
 }
 
 // Start Starts ClodConnector and its child processes, currently:
+// systemMetricsStreamPublishInterval is in seconds
 //  - An instance of connectionshandlers.ConnectionsHandlerInterface via its Listen() method.
 //  - An instance of CloudConnectorAPIInterface via its Start() method.
 func (cc *CloudConnector) Start(systemMetricsStreamPublishInterval uint) {

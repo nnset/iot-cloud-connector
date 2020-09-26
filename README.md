@@ -8,52 +8,61 @@
 Monitor and control your IoT devices using a simple and tiny helper cloud tool, that lets you 
 code your own business logic using [Go](https://golang.org/) programming language.
 
+## Principles
 
-## Main Concepts
+- You may communicate with IoT Devices in a **asynchronous** way.
+- You may communicate with IoT Devices in a **synchronous** way.
+- You may communicate with IoT Devices in both ways: **asynchronously** and **synchronously**.
+- At least one way of communications is required.
 
-| Name | Description |
-| ------------- | ------------- |
-| IoT Device  | Sensors, actuators, gateways or any IoT device you want to monitor or even control, with Internet access |
-| Cloud Connector  | Handles: start and shutdown actions, also monitors memory usage from connections.  |
-| REST API | A simple REST API where you query and send commands to your devices and also check Cloud Connector performance info. You can code your own API, however we provide a default one. |
-| Connections Handler  | This is your code, here you define communications protocol and business logic. We have coded some samples such as a Web sockets handler in order to help you with this. |
-| Command  | Send an order to an IoT Device. Commands may change device's state. |
-| Query  | Fetch information from an IoT Device. Queries shall not change device's state, therefore they are easily cacheable in case you need it. Queries should not alter device's state. |
-| SSE (Event stream)  | [Server Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) that allows you to listen in real time to what is happening with your IoT devices. |
+## Concepts
 
-## Conventions
+- Asynchronous communications are performed via **Messages** exchanges.
+- IoT devices, may send **Messages** to the cloud whenever they want, you just **handle these messages**.
+- Synchronous communications are performed via **Commands** and **Queries**.
+- If you want to synchronously alter the state of your IoT devices, **send them a Command**.
+- If you want to synchronously retrieve data from your IoT devices, **send them a Query**.
+- **IoT Cloud Connector** helps you to start the server, monitor its status a gracefully shut it down.
 
-- All communications are asynchronous by default.
-- If you want to alter the current state of your IoT devices you **send them a Command**.
-- If you want to retrieve data from your IoT devices you **send them a Query**.
-- IoT devices, may send data to the cloud whenever they want, you just **handle these messages**.
+## Packages (code layers)
 
-## Features
+![Global diagram](docs/images/global-diagram.jpg)
 
 | Name | Description |
 | ------------- | ------------- |
-| Monitor  | Monitor how many messages your cloud and your IoT devices ar exchanging and how many server memory connections are consuming. |
-| Control  | Send commands to your IoT devices and Query them for retrieving data at your will.  |
-| Customize  | Code your own business logic, Cloud Connector is just a low footprint facilitator. |
-| Default API | We provide a default REST API to handle your IoT devices and server. |
-| Default Websockets handler | If websockets its your thing, we provide a connections handler for you so you only have to worry about business logic regarding messages. |
-| Vanilla UI  | We provide a simple UI using vanilla Javascript that helps you check if your server is doing fine, also allows to send Commands and Queries to your IoT devices with the payload you want. |
+| servers | [IoT Cloud Connector](servers/cloudConnector.go) code and [REST API interface](servers/cloudConnectorAPIInterface.go) with an out of the box [API implementation](/docs/default-cloud-connector-api.md) |
+| connectionshandlers | [Interfaces](connectionshandlers/connectionsHandlerInterface.go) needed by Cloud Connector, that you have to implement in order to have your own communications. Also an out of the box [websockets implementation](connectionshandlers/websocketsHandler.go) where you can inject your own business logic, is provided. |
+| connections | [Structs and interfaces](connections/deviceConnection.go) in order to store IoT Devices connections information. |
+| storage | [Interfaces](storage/deviceConnectionsStorageInterface.go) that you will have to implemente in order to store connections information and an out of the box in memory implementation. |
+| ui | Vanilla UI, a Vanilla Javascript user interface, that connects to an IoT Cloud Connector instance, via our [out of the box API](/docs/default-cloud-connector-api.md) that shows you information regarding connected devices and allows to send them queries and commands. |
 
 ![Vanilla UI Dashboard](docs/images/vanilla-ui-dashboard.jpg)
 ![Vanilla UI Devices](docs/images/vanilla-ui-device.jpg)
 
-## Usage
 
-![Global diagram](docs/images/global-diagram.jpg)
+## Usage
 
 What you **must** code to make it work:
 
-1. A **connections handler** that will define the communications protocol between your IoT devices and Cloud Connector.
+
+1. A **modules definition** for your project [go.mod](https://blog.golang.org/using-go-modules) file:
+
+```
+go 1.13
+
+require (
+    github.com/nnset/iot-cloud-connector
+    github.com/sirupsen/logrus v1.4.2
+)
+
+```
+
+2. A **connections handler** that will define the communications protocol between your IoT devices and Cloud Connector.
 
 Your handlers must implement [connectionshandlers.ConnectionsHandlerInterface](connectionshandlers/connectionsHandlerInterface.go). Check [websockets sample](connectionshandlers/sampleWebsocketsHandler.go) for an example.
 
 
-2. Your own **package** or main.go file:
+3. Your own **package** or main.go file:
 
 ```go
 package main
@@ -118,18 +127,6 @@ func createLogger() *logrus.Logger {
 
     return log
 }
-
-```
-
-3. A **modules definition** for your project [go.mod](https://blog.golang.org/using-go-modules) file:
-
-```
-go 1.13
-
-require (
-    github.com/nnset/iot-cloud-connector
-    github.com/sirupsen/logrus v1.4.2
-)
 
 ```
 
@@ -240,7 +237,7 @@ We provide a default REST API for Cloud Connector check the [documentation here]
 
 # Links
 
-Cloud connector uses these amazing projects:
+IoT Cloud Connector uses these amazing projects:
 
 - Gorilla Toolkit: https://www.gorillatoolkit.org/
 - Logrus: https://github.com/sirupsen/logrus
