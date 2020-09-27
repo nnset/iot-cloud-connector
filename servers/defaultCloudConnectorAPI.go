@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nnset/iot-cloud-connector/connectionshandlers"
+
 	"github.com/gorilla/mux"
 )
 
@@ -273,7 +275,9 @@ func (api *DefaultCloudConnectorAPI) connectedDevices(w http.ResponseWriter, r *
 func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	commandResponse, responseCode, err := api.cloudConnector.SendCommand(api.rawRequestBody(r), vars["deviceID"])
+	c := connectionshandlers.NewCommand(vars["deviceID"], api.rawRequestBody(r))
+
+	commandResponse, responseCode, err := api.cloudConnector.SendCommand(c)
 
 	api.responseFromDevice(w, commandResponse, responseCode, err)
 }
@@ -281,7 +285,9 @@ func (api *DefaultCloudConnectorAPI) sendCommand(w http.ResponseWriter, r *http.
 func (api *DefaultCloudConnectorAPI) sendQuery(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	queryResponse, responseCode, err := api.cloudConnector.SendQuery(api.rawRequestBody(r), vars["deviceID"])
+	q := connectionshandlers.NewQuery(vars["deviceID"], api.rawRequestBody(r))
+
+	queryResponse, responseCode, err := api.cloudConnector.SendQuery(q)
 
 	api.responseFromDevice(w, queryResponse, responseCode, err)
 }

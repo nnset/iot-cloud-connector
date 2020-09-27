@@ -14,15 +14,16 @@ code your own business logic using [Go](https://golang.org/) programming languag
 - You may communicate with IoT Devices in a **synchronous** way.
 - You may communicate with IoT Devices in both ways: **asynchronously** and **synchronously**.
 - At least one way of communications is required.
+- Communications are performed exchanging **[Messages](connectionshandlers/message.go)**.
 
 ## Concepts
 
-- Asynchronous communications are performed via **Messages** exchanges.
-- IoT devices, may send **Messages** to the cloud whenever they want, you just **handle these messages**.
-- Synchronous communications are performed via **Commands** and **Queries**.
-- If you want to synchronously alter the state of your IoT devices, **send them a Command**.
-- If you want to synchronously retrieve data from your IoT devices, **send them a Query**.
-- **IoT Cloud Connector** helps you to start the server, monitor its status a gracefully shut it down.
+- Asynchronous communications are performed via **[Messages](connectionshandlers/message.go)** exchanges.
+- IoT devices, may send **[Messages](connectionshandlers/message.go)** to the cloud whenever they want, you just **handle these messages**.
+- Synchronous communications are performed via **[Commands](connectionshandlers/command.go)** and **[Queries](connectionshandlers/query.go)**, that are an encapsulation of regular **Messages**, but once send, will wait until a response from the device is received or time outs. This is helpful when implementing REST APIs for instance.
+- If you want to synchronously alter the state of your IoT devices, **send them a [Command](connectionshandlers/command.go)**.
+- If you want to synchronously retrieve data from your IoT devices, **send them a [Query](connectionshandlers/query.go)**.
+- **[IoT Cloud Connector](servers/cloudConnector.go)** helps you to start the server, an API, monitor its status and gracefully shut it down.
 
 ## Packages (code layers)
 
@@ -33,7 +34,7 @@ code your own business logic using [Go](https://golang.org/) programming languag
 | servers | [IoT Cloud Connector](servers/cloudConnector.go) code and [REST API interface](servers/cloudConnectorAPIInterface.go) with an out of the box [API implementation](/docs/default-cloud-connector-api.md) |
 | connectionshandlers | [Interfaces](connectionshandlers/connectionsHandlerInterface.go) needed by Cloud Connector, that you have to implement in order to have your own communications. Also an out of the box [websockets implementation](connectionshandlers/websocketsHandler.go) where you can inject your own business logic, is provided. |
 | connections | [Structs and interfaces](connections/deviceConnection.go) in order to store IoT Devices connections information. |
-| storage | [Interfaces](storage/deviceConnectionsStorageInterface.go) that you will have to implemente in order to store connections information and an out of the box in memory implementation. |
+| storage | [Interfaces](storage/deviceConnectionsStorageInterface.go) that you will have to implement in order to store connection's information. An out of the box [in memory](storage/inMemoryDeviceConnectionsStorage.go) implementation is provided. |
 | ui | Vanilla UI, a Vanilla Javascript user interface, that connects to an IoT Cloud Connector instance, via our [out of the box API](/docs/default-cloud-connector-api.md) that shows you information regarding connected devices and allows to send them queries and commands. |
 
 ![Vanilla UI Dashboard](docs/images/vanilla-ui-dashboard.jpg)

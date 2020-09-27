@@ -30,8 +30,8 @@ type SampleWebSocketsHandler struct {
 	shutdownInProgress         bool
 	activeConnections          storage.DeviceConnectionsStorageInterface
 	connections                map[string]*websocket.Conn
-	queriesToDevicesWaiting    map[string]chan deviceMessage
-	commandsToDevicesWaiting   map[string]chan deviceMessage
+	queriesToDevicesWaiting    map[string]chan Message
+	commandsToDevicesWaiting   map[string]chan Message
 	dataMutex                  *sync.Mutex
 	shutdownOutgoingDeliveries chan bool
 }
@@ -47,8 +47,8 @@ func NewSampleWebSocketsHandler(address, port, network, keyFile, certFile string
 		network:                    network,
 		startTime:                  time.Now().Unix(),
 		connections:                make(map[string]*websocket.Conn),
-		queriesToDevicesWaiting:    make(map[string]chan deviceMessage),
-		commandsToDevicesWaiting:   make(map[string]chan deviceMessage),
+		queriesToDevicesWaiting:    make(map[string]chan Message),
+		commandsToDevicesWaiting:   make(map[string]chan Message),
 		dataMutex:                  &sync.Mutex{},
 		certFile:                   certFile,
 		keyFile:                    keyFile,
@@ -217,7 +217,7 @@ func (handler *SampleWebSocketsHandler) handleIncomingMessages(deviceID string, 
 
 		handler.activeConnections.MessageWasReceived(deviceID)
 
-		var m deviceMessage
+		var m Message
 		err = json.Unmarshal([]byte(message), &m)
 
 		if err == nil && m.ID != "" {
@@ -282,15 +282,13 @@ func (handler *SampleWebSocketsHandler) SendQuery(payload, deviceID string) (str
 	}
 }
 
-func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID string, queue map[string]chan deviceMessage) <-chan string {
+func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID string, queue map[string]chan Message) <-chan string {
 	r := make(chan string)
 
 	go func() {
 		defer close(r)
-
-		messageID := uuid.New().String()
-		asyncResponseWaitChannel := make(chan deviceMessage)
-		message := deviceMessage{messageID, payload, time.Now().Unix()}
+		asyncResponseWaitChannel := make(chan Message)
+		message := NewMessage(payload)
 		marshalledMessage, err := json.Marshal(message) // TODO error checks on json marshalling
 
 		if err != nil {
@@ -299,13 +297,13 @@ func (handler *SampleWebSocketsHandler) synchMessageToDevice(payload, deviceID s
 		}
 
 		handler.dataMutex.Lock()
-		queue[messageID] = asyncResponseWaitChannel
+		queue[message.ID] = asyncResponseWaitChannel
 		handler.dataMutex.Unlock()
 
 		defer close(asyncResponseWaitChannel)
 		defer func() {
 			handler.dataMutex.Lock()
-			delete(queue, messageID)
+			delete(queue, message.ID)
 			handler.dataMutex.Unlock()
 		}()
 

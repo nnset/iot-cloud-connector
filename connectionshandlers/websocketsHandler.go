@@ -30,8 +30,8 @@ type WebSocketsHandler struct {
 	shutdownInProgress         bool
 	activeConnections          storage.DeviceConnectionsStorageInterface
 	openWebsockets             map[string]*websocket.Conn
-	queriesToDevicesWaiting    map[string]chan deviceMessage
-	commandsToDevicesWaiting   map[string]chan deviceMessage
+	queriesToDevicesWaiting    map[string]chan Message
+	commandsToDevicesWaiting   map[string]chan Message
 	dataMutex                  *sync.Mutex
 	shutdownOutgoingDeliveries chan bool
 	handleIncomingMessage      func(deviceID string, messageType int, p []byte) error
@@ -54,8 +54,8 @@ func NewWebSocketsHandler(
 		network:                    network,
 		startTime:                  time.Now().Unix(),
 		openWebsockets:             make(map[string]*websocket.Conn),
-		queriesToDevicesWaiting:    make(map[string]chan deviceMessage),
-		commandsToDevicesWaiting:   make(map[string]chan deviceMessage),
+		queriesToDevicesWaiting:    make(map[string]chan Message),
+		commandsToDevicesWaiting:   make(map[string]chan Message),
 		dataMutex:                  &sync.Mutex{},
 		certFile:                   certFile,
 		keyFile:                    keyFile,
@@ -239,9 +239,9 @@ func (handler *WebSocketsHandler) handleIncomingMessages(deviceID string, wsConn
 	}
 }
 
-func (handler *WebSocketsHandler) handleResponseToCommandOrQuery(message []byte) error {
-	var m deviceMessage
-	err := json.Unmarshal([]byte(message), &m)
+func (handler *WebSocketsHandler) handleResponseToCommandOrQuery(messageData []byte) error {
+	var m Message
+	err := json.Unmarshal(messageData, &m)
 
 	if err != nil {
 		return err
@@ -267,10 +267,10 @@ func (handler *WebSocketsHandler) handleResponseToCommandOrQuery(message []byte)
 	return nil
 }
 
-func (handler *WebSocketsHandler) messageRespondsToAQueryOrACommand(message []byte) bool {
+func (handler *WebSocketsHandler) messageRespondsToAQueryOrACommand(messageData []byte) bool {
 
-	var m deviceMessage
-	err := json.Unmarshal([]byte(message), &m)
+	var m Message
+	err := json.Unmarshal(messageData, &m)
 
 	return err == nil && m.ID != ""
 }
@@ -290,9 +290,9 @@ func (handler *WebSocketsHandler) isACommandWaitingForMessage(messageID string) 
 /*
 SendCommand TODO
 */
-func (handler *WebSocketsHandler) SendCommand(payload, deviceID string) (string, int, error) {
+func (handler *WebSocketsHandler) SendCommand(command Command) (string, int, error) {
 	handler.dataMutex.Lock()
-	_, isConnected := handler.openWebsockets[deviceID]
+	_, isConnected := handler.openWebsockets[command.DeviceID]
 	handler.dataMutex.Unlock()
 
 	if !isConnected {
@@ -300,7 +300,7 @@ func (handler *WebSocketsHandler) SendCommand(payload, deviceID string) (string,
 	}
 
 	select {
-	case r := <-handler.sendMessageToDeviceSynchronously(payload, deviceID, handler.commandsToDevicesWaiting):
+	case r := <-handler.sendMessageToDeviceSynchronously(command.Payload, command.DeviceID, handler.commandsToDevicesWaiting):
 		return fmt.Sprint(r), http.StatusOK, nil
 	case <-time.After(8 * time.Second):
 		return "", http.StatusRequestTimeout, errors.New("Device command timeout")
@@ -310,9 +310,9 @@ func (handler *WebSocketsHandler) SendCommand(payload, deviceID string) (string,
 /*
 SendQuery TODO
 */
-func (handler *WebSocketsHandler) SendQuery(payload, deviceID string) (string, int, error) {
+func (handler *WebSocketsHandler) SendQuery(query Query) (string, int, error) {
 	handler.dataMutex.Lock()
-	_, isConnected := handler.openWebsockets[deviceID]
+	_, isConnected := handler.openWebsockets[query.DeviceID]
 	handler.dataMutex.Unlock()
 
 	if !isConnected {
@@ -320,22 +320,21 @@ func (handler *WebSocketsHandler) SendQuery(payload, deviceID string) (string, i
 	}
 
 	select {
-	case r := <-handler.sendMessageToDeviceSynchronously(payload, deviceID, handler.queriesToDevicesWaiting):
+	case r := <-handler.sendMessageToDeviceSynchronously(query.Payload, query.DeviceID, handler.queriesToDevicesWaiting):
 		return fmt.Sprint(r), http.StatusOK, nil
 	case <-time.After(8 * time.Second):
 		return "", http.StatusRequestTimeout, errors.New("Device query timeout")
 	}
 }
 
-func (handler *WebSocketsHandler) sendMessageToDeviceSynchronously(payload, deviceID string, queue map[string]chan deviceMessage) <-chan string {
+func (handler *WebSocketsHandler) sendMessageToDeviceSynchronously(payload, deviceID string, queue map[string]chan Message) <-chan string {
 	r := make(chan string)
 
 	go func() {
 		defer close(r)
 
-		messageID := uuid.New().String()
-		asyncResponseWaitChannel := make(chan deviceMessage)
-		message := deviceMessage{messageID, payload, time.Now().Unix()}
+		asyncResponseWaitChannel := make(chan Message)
+		message := NewMessage(payload)
 		marshalledMessage, err := json.Marshal(message) // TODO error checks on json marshalling
 
 		if err != nil {
@@ -344,13 +343,13 @@ func (handler *WebSocketsHandler) sendMessageToDeviceSynchronously(payload, devi
 		}
 
 		handler.dataMutex.Lock()
-		queue[messageID] = asyncResponseWaitChannel
+		queue[message.ID] = asyncResponseWaitChannel
 		handler.dataMutex.Unlock()
 
 		defer close(asyncResponseWaitChannel)
 		defer func() {
 			handler.dataMutex.Lock()
-			delete(queue, messageID)
+			delete(queue, message.ID)
 			handler.dataMutex.Unlock()
 		}()
 
