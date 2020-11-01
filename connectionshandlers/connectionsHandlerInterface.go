@@ -10,9 +10,14 @@ import (
 // IoT devices connections.
 type ConnectionsHandlerInterface interface {
 	Start(shutdownChannel, shutdownIsCompleteChannel *chan bool, connections storage.DeviceConnectionsStorageInterface, log *logrus.Logger) error
-	SendCommand(payload, deviceID string) (string, int, error)
-	SendQuery(payload, deviceID string) (string, int, error)
+
+	// Send a Command to a Device and wait for its feedback. This is a Synchronous action.
+	SendCommand(command Command) (string, int, error)
+	// Send a Query to a Device and wait for the response. This is a Synchronous action.
+	SendQuery(query Query) (string, int, error)
+
+	// TODO add a method to allow sending a Message asynchronously
+
 	QueriesWaiting() uint
 	CommandsWaiting() uint
-	AuthenticateNewConnection(authData string) error
 }

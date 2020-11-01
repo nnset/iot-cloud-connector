@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nnset/iot-cloud-connector/connectionshandlers"
+
 	"github.com/nnset/iot-cloud-connector/storage"
 
 	"github.com/sirupsen/logrus"
@@ -45,16 +47,16 @@ func (d *dummyConnectionsHandler) Stats() storage.DeviceConnectionsStorageInterf
 	return d.connections
 }
 
-func (d *dummyConnectionsHandler) SendCommand(payload, deviceID string) (string, int, error) {
-	if deviceID == "dummy_id" {
+func (d *dummyConnectionsHandler) SendCommand(command connectionshandlers.Command) (string, int, error) {
+	if command.DeviceID == "abc-123" {
 		return "Command OK", 200, nil
 	}
 
 	return "", 404, errors.New("Device not connected")
 }
 
-func (d *dummyConnectionsHandler) SendQuery(payload, deviceID string) (string, int, error) {
-	if deviceID == "dummy_id" {
+func (d *dummyConnectionsHandler) SendQuery(query connectionshandlers.Query) (string, int, error) {
+	if query.DeviceID == "abc-123" {
 		return "Query OK", 200, nil
 	}
 
@@ -161,7 +163,9 @@ func TestSendingACommandShouldReturnWhatConnectionsHandlerReturns(t *testing.T) 
 
 	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
-	response, responseCode, err := s.SendCommand("payload", "dummy_id")
+	c := connectionshandlers.NewCommand("abc-123", "payload")
+
+	response, responseCode, err := s.SendCommand(c)
 
 	assert.Equal(t, "Command OK", response)
 	assert.Equal(t, 200, responseCode)
@@ -175,7 +179,9 @@ func TestSendingAQueryShouldReturnWhatConnectionsHandlerReturns(t *testing.T) {
 
 	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
-	response, responseCode, err := s.SendQuery("payload", "dummy_id")
+	q := connectionshandlers.NewQuery("abc-123", "payload")
+
+	response, responseCode, err := s.SendQuery(q)
 
 	assert.Equal(t, "Query OK", response)
 	assert.Equal(t, 200, responseCode)
@@ -189,7 +195,9 @@ func TestSendingAQueryToADeviceThatIsNotConnectedShouldReturnAnError(t *testing.
 
 	s := NewCloudConnector(log, &connectionsHandler, storage.NewInMemoryDeviceConnectionsStorage(), nil, nil)
 
-	response, responseCode, err := s.SendQuery("payload", "abc-123")
+	q := connectionshandlers.NewQuery("dummy_id", "payload")
+
+	response, responseCode, err := s.SendQuery(q)
 
 	assert.Equal(t, "", response)
 	assert.Equal(t, 404, responseCode)

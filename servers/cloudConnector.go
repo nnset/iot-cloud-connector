@@ -36,7 +36,7 @@ type CloudConnector struct {
 	connectionsHandler      connectionshandlers.ConnectionsHandlerInterface
 	statusAPI               CloudConnectorAPIInterface
 	state                   CloudConnectorState
-	activeConnections       storage.DeviceConnectionsStorageInterface
+	activeConnections       storage.DeviceConnectionsStorageInterface // Does it have to be here or just at connections handler ???
 	auth                    APIAuthMiddleWare
 	systemMetricsStream     SystemMetricsStreamInterface
 }
@@ -99,6 +99,7 @@ func NewCloudConnector(
 }
 
 // Start Starts ClodConnector and its child processes, currently:
+// systemMetricsStreamPublishInterval is in seconds
 //  - An instance of connectionshandlers.ConnectionsHandlerInterface via its Listen() method.
 //  - An instance of CloudConnectorAPIInterface via its Start() method.
 func (cc *CloudConnector) Start(systemMetricsStreamPublishInterval uint) {
@@ -217,6 +218,14 @@ func (cc *CloudConnector) Uptime(deviceID string) int64 {
 	return uptime
 }
 
+func (cc *CloudConnector) SendCommand(command connectionshandlers.Command) (string, int, error) {
+	return cc.connectionsHandler.SendCommand(command)
+}
+
+func (cc *CloudConnector) SendQuery(query connectionshandlers.Query) (string, int, error) {
+	return cc.connectionsHandler.SendQuery(query)
+}
+
 func (cc *CloudConnector) StartTime() int64 {
 	return cc.startTime
 }
@@ -249,16 +258,6 @@ func (cc *CloudConnector) SentMessages(deviceID string) uint {
 	}
 
 	return cc.activeConnections.SentMessages(deviceID)
-}
-
-// SendCommand Send a command message to a given IoT Device
-func (cc *CloudConnector) SendCommand(payload, deviceID string) (string, int, error) {
-	return cc.connectionsHandler.SendCommand(payload, deviceID)
-}
-
-// SendQuery Send a query message to a given IoT Device
-func (cc *CloudConnector) SendQuery(payload, deviceID string) (string, int, error) {
-	return cc.connectionsHandler.SendQuery(payload, deviceID)
 }
 
 // SystemMemory total mega bytes of memory obtained from the OS by CloudConnector and its
