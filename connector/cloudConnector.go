@@ -87,7 +87,7 @@ func (cc *CloudConnector) startServices() {
 
 		err := service.Init(cc.shutdownServices)
 
-		if err != nil {
+		if err == nil {
 			go service.Start()
 
 			cc.servicesGracefullShutdowns[service.Id()] = service.ShutdownChannel()
