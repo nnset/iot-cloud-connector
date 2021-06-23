@@ -17,7 +17,7 @@ func TestCreatingNewCloudConenctorShouldSetItsStateToCreated(t *testing.T) {
 	var services []services.ServiceInterface
 	services = append(services, &DummyConnectionsHandler{})
 
-	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel)
+	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel, 5)
 
 	assert.Assert(t, connector.State == CloudConnectorCreated)
 }
@@ -27,7 +27,7 @@ func TestStartingCloudConenctorShouldSetItsStateToStarted(t *testing.T) {
 	var services []services.ServiceInterface
 	services = append(services, &DummyConnectionsHandler{})
 
-	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel)
+	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel, 5)
 
 	go connector.Start()
 
@@ -43,7 +43,7 @@ func TestStoppingCloudConenctorShouldSetItsStateToStopped(t *testing.T) {
 	var services []services.ServiceInterface
 	services = append(services, &DummyConnectionsHandler{})
 
-	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel)
+	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel, 5)
 
 	go connector.Start()
 
@@ -62,7 +62,7 @@ func TestStartingCloudConnectorShouldStartAllServices(t *testing.T) {
 	services = append(services, &DummyConnectionsHandler{})
 	services = append(services, &DummyConnectionsHandler{})
 
-	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel)
+	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel, 5)
 
 	assert.Assert(t, (services[0].(*DummyConnectionsHandler)).HasStarted == false)
 	assert.Assert(t, (services[1].(*DummyConnectionsHandler)).HasStarted == false)
@@ -84,7 +84,7 @@ func TestStoppingCloudConnectorShouldStopAllServices(t *testing.T) {
 	services = append(services, &DummyConnectionsHandler{})
 	services = append(services, &DummyConnectionsHandler{})
 
-	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel)
+	connector := NewCloudConnector(eventBus, services, "", LogErrorLevel, 5)
 
 	assert.Assert(t, (services[0].(*DummyConnectionsHandler)).IsStopped == false)
 	assert.Assert(t, (services[1].(*DummyConnectionsHandler)).IsStopped == false)

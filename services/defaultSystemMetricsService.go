@@ -82,7 +82,7 @@ func (service *DefaultSystemMetricsService) publishMetric(topic string, currentV
 	previousValue, exists := service.metricsLastPublishedValue[topic]
 
 	if !exists || previousValue != currentValue {
-		service.eventBus.Publish(topic, events.NewMessage(currentValue, events.Default))
+		service.eventBus.Publish(topic, events.NewMessage(currentValue, "localhost", events.Default))
 		service.metricsLastPublishedValue[topic] = currentValue
 	}
 }

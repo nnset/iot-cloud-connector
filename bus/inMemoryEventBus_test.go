@@ -70,7 +70,7 @@ func TestSubscribingToEventBusTopicShouldReceiveMessages(t *testing.T) {
 
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		eventBus.Publish("topic", events.NewMessage("payload", events.Query)) // todo Query
+		eventBus.Publish("topic", events.NewMessage("payload", "address", events.Query)) // todo Query
 	}()
 
 	select {

@@ -53,7 +53,7 @@ const (
 	CloudConnectorGracefullyStopped CloudConnectorState = "gracefully_stopped"
 )
 
-// CloudConnector is central component of your IoT server, it has the responsability
+// CloudConnector is the central component of your IoT server, it has the responsability
 // to start all your services (your businness logic and any other dependency that
 // you may need) and try a gracefull shutdown when the time comes.
 // We encourage you to follow an asynchronous/event driven
@@ -64,7 +64,7 @@ type CloudConnector struct {
 	State                              CloudConnectorState
 	LogFilePath                        string
 	LogDebugLevel                      uint32
-	ShutdownTimeout                    uint // In secoonds
+	ShutdownTimeout                    uint // In seconds
 	eventBus                           bus.MessageBus
 	services                           []services.ServiceInterface
 	servicesGracefullShutdowns         map[string]chan bool
@@ -151,6 +151,8 @@ func (cc *CloudConnector) startServices() {
 			cc.servicesGracefullShutdownWaitGroup.Add(1)
 
 			go cc.waitForServiceShutdown(service.Id())
+		} else {
+			cc.log.Error(err)
 		}
 	}
 }
@@ -177,10 +179,9 @@ func (cc *CloudConnector) waitServicesToShutdown() {
 
 	select {
 	case <-c:
-		// TODO log
 		cc.serverFullShutdownWaitGroup.Done()
 	case <-time.After(time.Duration(cc.ShutdownTimeout) * time.Second):
-		// TODO log
+		cc.log.Warning("Unable to gracefully shutdown services. Cloud Conenctor will shutdown.")
 		cc.serverFullShutdownWaitGroup.Done()
 	}
 }

@@ -5,7 +5,8 @@ type ServiceInterface interface {
 	// shutdownService is the channel where this service will receive a message from Cloud Connector
 	// to shut down.
 	Init(shutdownService chan bool) error
-	// Start Starts the service.
+	// Start Starts the service. This is a blocking operation, waiting for
+	// shutdown signal, so run it in a go routine.
 	Start()
 
 	Id() string
