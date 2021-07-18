@@ -38,7 +38,7 @@ func TestEstablishedConnectionsShouldBeCounted(t *testing.T) {
 
 	m := events.NewMessage("{\"device_id\": \"abc-123\"}", "192.168.1.100", events.Default)
 
-	eventBus.Publish(events.ConnectionEstablished, m)
+	eventBus.Publish(events.ConnectionEstablishedTopic, m)
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -63,13 +63,13 @@ func TestClosedConnectionsShouldBeDiscounted(t *testing.T) {
 
 	m := events.NewMessage("{\"device_id\": \"abc-123\"}", "192.168.1.100", events.Default)
 
-	eventBus.Publish(events.ConnectionEstablished, m)
+	eventBus.Publish(events.ConnectionEstablishedTopic, m)
 
 	time.Sleep(20 * time.Millisecond)
 
 	assert.Assert(t, service.ActiveConnectionsCount() == 1)
 
-	eventBus.Publish(events.ConnectionClosed, m)
+	eventBus.Publish(events.ConnectionClosedTopic, m)
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -98,7 +98,7 @@ func TestEstablishingMultipleConnectionsShouldBeThreadSafe(t *testing.T) {
 			payload := fmt.Sprintf("{\"device_id\": \"%s\"}", uuid.New().String())
 			m := events.NewMessage(payload, "192.168.1.100", events.Default)
 
-			eventBus.Publish(events.ConnectionEstablished, m)
+			eventBus.Publish(events.ConnectionEstablishedTopic, m)
 		}
 
 		wg.Done()
@@ -109,7 +109,7 @@ func TestEstablishingMultipleConnectionsShouldBeThreadSafe(t *testing.T) {
 			payload := fmt.Sprintf("{\"device_id\": \"%s\"}", uuid.New().String())
 			m := events.NewMessage(payload, "192.168.1.100", events.Default)
 
-			eventBus.Publish(events.ConnectionEstablished, m)
+			eventBus.Publish(events.ConnectionEstablishedTopic, m)
 		}
 
 		wg.Done()
@@ -120,7 +120,7 @@ func TestEstablishingMultipleConnectionsShouldBeThreadSafe(t *testing.T) {
 			payload := fmt.Sprintf("{\"device_id\": \"%s\"}", uuid.New().String())
 			m := events.NewMessage(payload, "192.168.1.100", events.Default)
 
-			eventBus.Publish(events.ConnectionEstablished, m)
+			eventBus.Publish(events.ConnectionEstablishedTopic, m)
 		}
 
 		wg.Done()

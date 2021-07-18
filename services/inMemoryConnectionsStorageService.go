@@ -54,8 +54,8 @@ func (service *InMemoryConnectionsStorageService) Init(shutdownService chan bool
 	service.shutdownService = shutdownService
 	service.serviceIsShutdown = make(chan bool)
 
-	service.eventBus.Subscribe(events.ConnectionEstablished, &service.connectionsEstablishedChannel)
-	service.eventBus.Subscribe(events.ConnectionClosed, &service.connectionsClosedChannel)
+	service.eventBus.Subscribe(events.ConnectionEstablishedTopic, &service.connectionsEstablishedChannel)
+	service.eventBus.Subscribe(events.ConnectionClosedTopic, &service.connectionsClosedChannel)
 
 	return nil
 }
